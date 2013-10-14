@@ -11,16 +11,22 @@ from .common import InfoExtractor
 
 
 class TudouIE(InfoExtractor):
-    #_VALID_URL = r'(?:http://)?(?:www\.)?tudou\.com/((?:listplay|programs)/(?:view|(.+?)))|(?:albumplay)/(?:([^/]+)|([^/]+))(?:\.html)?'
     _VALID_URL = r'(?:http://)?(?:www\.)?tudou\.com/(((?:listplay|programs)/(?:view|(.+?)))|((?:albumplay)(?:/[^/]*)))/(?:([^/]+)|([^/]+))(?:\.html)?'
-    _TEST = {
-    u'url': u'http://www.tudou.com/listplay/zzdE77v6Mmo/2xN2duXMxmw.html',
-    u'file': u'159448201.f4v',
-    u'md5': u'140a49ed444bd22f93330985d8475fcb',
-    u'info_dict': {
-        u"title": u"卡马乔国足开大脚长传冲吊集锦"
+    _TESTS = [{
+        u'url': u'http://www.tudou.com/listplay/zzdE77v6Mmo/2xN2duXMxmw.html',
+        u'file': u'159448201.f4v',
+        u'md5': u'140a49ed444bd22f93330985d8475fcb',
+        u'info_dict': {
+            u"title": u"卡马乔国足开大脚长传冲吊集锦"
         }
-    }
+    }, {
+        u'url': u'http://www.tudou.com/albumplay/TenTw_JgiPM/PzsAs5usU9A.html',
+        u'file': u'XXX.f4v',
+        u'md5': u'',
+        u'info_dict': {
+            u"title": u"沉睡谷-第3集"
+        }
+    }]
 
     def _url_for_id(self, id, quality = None):
         info_url = "http://v2.tudou.com/f?id="+str(id)
@@ -29,19 +35,6 @@ class TudouIE(InfoExtractor):
         webpage = self._download_webpage(info_url, id, "Opening the info webpage")
         final_url = self._html_search_regex('>(.+?)</f>',webpage, 'video url')
         return final_url
-
-    def get_page(self,url):
-        request=urllib2.urlopen(url)
-        html=request.read()
-        content_type=request.headers.get('Content-Type')
-        m = re.match(r'[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+\s*;\s*charset=(.+)', content_type)
-        if m:
-            encoding=m.group(1)
-            html=html.decode(encoding,"replace")
-            return html
-        else:
-            return None
-
 
     def isyouku(self,url):
         request=urllib2.urlopen(url)
@@ -59,7 +52,7 @@ class TudouIE(InfoExtractor):
             return None
 
     def downloadYouku_by_id(self,videoId,title):
-        info=self.get_youkuinfo(videoId)
+        info=json.loads(self._download_webpage('http://v.youku.com/player/getPlayList/VideoIDS/' + videoId + '/timezone/+08/version/5/source/out/Sc/2', 'tudou'))
         result=[]
         urls,sizes=zip(*self.find_video(info,None))
         pattern=re.compile(r'/st/([^/]+)/')
@@ -75,10 +68,6 @@ class TudouIE(InfoExtractor):
             result.append(part_info)
 
         return result
-
-
-    def get_youkuinfo(self,videoId):
-        return json.loads(self.get_page('http://v.youku.com/player/getPlayList/VideoIDS/' + videoId + '/timezone/+08/version/5/source/out/Sc/2'))
 
     def find_video(self,info, stream_type = None):
         #key = '%s%x' % (info['data'][0]['key2'], int(info['data'][0]['key1'], 16) ^ 0xA55AA5A5)
