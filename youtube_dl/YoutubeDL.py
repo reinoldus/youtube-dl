@@ -17,6 +17,32 @@ if os.name == 'nt':
     import ctypes
 
 from .utils import *
+from .utils import (
+    compat_http_client,
+    compat_print,
+    compat_str,
+    compat_urllib_error,
+    compat_urllib_request,
+    ContentTooShortError,
+    date_from_str,
+    DateRange,
+    determine_ext,
+    DownloadError,
+    encodeFilename,
+    ExtractorError,
+    locked_file,
+    MaxDownloadsReached,
+    PostProcessingError,
+    preferredencoding,
+    SameFileError,
+    sanitize_filename,
+    subtitles_filename,
+    takewhile_inclusive,
+    UnavailableVideoError,
+    write_json_file,
+    write_string,
+)
+
 from .extractor import get_info_extractor, gen_extractors, YoutubeIE
 from .FileDownloader import FileDownloader
 
@@ -129,7 +155,7 @@ class YoutubeDL(object):
             params['restrictfilenames'] = True
 
         self.params = params
-        #self.fd = FileDownloader(self, self.params)
+        self.fd = FileDownloader(self, self.params)
 
         if '%(stitle)s' in self.params['outtmpl']:
             self.report_warning(u'%(stitle)s is deprecated. Use the %(title)s and the --restrict-filenames flag(which also secures %(uploader)s et al) instead.')
