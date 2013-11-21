@@ -51,4 +51,4 @@ class GrabberApi(object):
                 "quiet": True
             })
 
-            self.parseResults = inst.download(self.url)['entries'][0]
+            self.parseResults = inst.download([self.url])['entries'][0]
