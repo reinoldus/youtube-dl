@@ -14,7 +14,7 @@ import time
 import traceback
 
 from .utils import *
-from .extractor import get_info_extractor, gen_extractors
+from .extractor import get_info_extractor, gen_extractors, YoutubeIE
 from .FileDownloader import FileDownloader
 
 
@@ -126,7 +126,7 @@ class YoutubeDL(object):
             params['restrictfilenames'] = True
 
         self.params = params
-        self.fd = FileDownloader(self, self.params)
+        #self.fd = FileDownloader(self, self.params)
 
         if '%(stitle)s' in self.params['outtmpl']:
             self.report_warning(u'%(stitle)s is deprecated. Use the %(title)s and the --restrict-filenames flag(which also secures %(uploader)s et al) instead.')
@@ -709,10 +709,13 @@ class YoutubeDL(object):
         if len(url_list) > 1 and self.fixed_template():
             raise SameFileError(self.params['outtmpl'])
 
+        self.add_info_extractor(YoutubeIE())
+
         for url in url_list:
             try:
                 #It also downloads the videos
-                videos = self.extract_info(url)
+                videos = self.extract_info(url, False)
+                return videos
             except UnavailableVideoError:
                 self.report_error(u'unable to download video')
             except MaxDownloadsReached:
