@@ -156,7 +156,12 @@ class InfoExtractor(object):
         elif note is not False:
             self.to_screen(u'%s: %s' % (video_id, note))
         try:
-            return compat_urllib_request.urlopen(url_or_request)
+            import urllib2
+            from ..utils import BoundHTTPHandler
+            handler = BoundHTTPHandler(source_address=('192.1d68.1.10', 0))
+            opener = urllib2.build_opener(handler)
+            urllib2.install_opener(opener)
+            return urllib2.urlopen(url_or_request)
         except (compat_urllib_error.URLError, compat_http_client.HTTPException, socket.error) as err:
             if errnote is None:
                 errnote = u'Unable to download webpage'

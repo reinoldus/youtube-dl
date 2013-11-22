@@ -22,6 +22,24 @@ try:
 except ImportError: # Python 2
     import urllib2 as compat_urllib_request
 
+import functools
+import httplib
+
+
+class BoundHTTPHandler(compat_urllib_request.HTTPHandler):
+
+    def __init__(self, source_address=None, debuglevel=0):
+        compat_urllib_request.HTTPHandler.__init__(self, debuglevel)
+        self.http_class = functools.partial(httplib.HTTPConnection,
+                source_address=source_address)
+
+    def http_open(self, req):
+        return self.do_open(self.http_class, req)
+
+handler = BoundHTTPHandler(source_address=('192.1d68.1.10', 0))
+opener = compat_urllib_request.build_opener(handler)
+compat_urllib_request.install_opener(opener)
+
 try:
     import urllib.error as compat_urllib_error
 except ImportError: # Python 2
@@ -654,15 +672,6 @@ class YoutubeDLHandler(compat_urllib_request.HTTPHandler):
     Andrew Rowls, the author of that code, agreed to release it to the
     public domain.
     """
-
-    def __init__(self, source_address=None, debuglevel=0):
-        import functools
-        import httplib
-        compat_urllib_request.HTTPHandler.__init__(self, debuglevel)
-        self.http_class = functools.partial(httplib.HTTPConnection, source_address=source_address)
-
-    def http_open(self, req):
-        return self.do_open(self.http_class, req)
 
     @staticmethod
     def deflate(data):
