@@ -671,6 +671,7 @@ def _real_main(argv=None):
         'youtube_print_sig_code': opts.youtube_print_sig_code,
         'age_limit': opts.age_limit,
         'download_archive': opts.download_archive,
+        'ips': opts.ips,
     }
 
     with YoutubeDL(ydl_opts) as ydl:
@@ -759,7 +760,7 @@ def _setup_opener(jar=None, opts=None, timeout=300):
     proxy_handler = compat_urllib_request.ProxyHandler(proxies)
     https_handler = make_HTTPS_handler(opts)
     opener = compat_urllib_request.build_opener(
-        https_handler, proxy_handler, cookie_processor, YoutubeDLHandler())
+        https_handler, proxy_handler, cookie_processor, YoutubeDLHandler(('192.168.178.21', 0)))
     # Delete the default user-agent header, which would otherwise apply in
     # cases where our custom HTTP handler doesn't come into play
     # (See https://github.com/rg3/youtube-dl/issues/1309 for details)

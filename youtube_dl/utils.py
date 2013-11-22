@@ -655,6 +655,15 @@ class YoutubeDLHandler(compat_urllib_request.HTTPHandler):
     public domain.
     """
 
+    def __init__(self, source_address=None, debuglevel=0):
+        import functools
+        import httplib
+        compat_urllib_request.HTTPHandler.__init__(self, debuglevel)
+        self.http_class = functools.partial(httplib.HTTPConnection, source_address=source_address)
+
+    def http_open(self, req):
+        return self.do_open(self.http_class, req)
+
     @staticmethod
     def deflate(data):
         try:
