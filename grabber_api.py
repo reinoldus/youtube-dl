@@ -5,19 +5,6 @@ import thirdparty_grabber
 import traceback
 import myexceptions
 
-import functools
-import httplib
-import urllib2
-
-class BoundHTTPHandler(urllib2.HTTPHandler):
-
-    def __init__(self, source_address=None, debuglevel=0):
-        urllib2.HTTPHandler.__init__(self, debuglevel)
-        self.http_class = functools.partial(httplib.HTTPConnection,
-                source_address=source_address)
-
-    def http_open(self, req):
-        return self.do_open(self.http_class, req)
 
 class GrabberApi(object):
     """
@@ -36,9 +23,6 @@ class GrabberApi(object):
         self.url = url
         self.parseResults = None
         self.formats = formats
-        handler = BoundHTTPHandler(source_address=('192.168.1.10', 0))
-        opener = urllib2.build_opener(handler)
-        urllib2.install_opener(opener)
 
     def getVideoUrl(self):
         self._parse()
