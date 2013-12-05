@@ -251,8 +251,8 @@ class YoutubeDL(object):
 
         tb, if given, is additional traceback information.
         """
-        if message is not None:
-            self.to_stderr(message)
+        #if message is not None:
+        #    self.to_stderr(message)
         if self.params.get('verbose'):
             if tb is None:
                 if sys.exc_info()[0]:  # if .trouble has been called from an except block
@@ -263,7 +263,7 @@ class YoutubeDL(object):
                 else:
                     tb_data = traceback.format_list(traceback.extract_stack())
                     tb = u''.join(tb_data)
-            self.to_stderr(tb)
+            raise DownloadError(message, tb)
         if not self.params.get('ignoreerrors', False):
             if sys.exc_info()[0] and hasattr(sys.exc_info()[1], 'exc_info') and sys.exc_info()[1].exc_info[0]:
                 exc_info = sys.exc_info()[1].exc_info
@@ -782,6 +782,7 @@ class YoutubeDL(object):
                 return videos
             except UnavailableVideoError:
                 self.report_error(u'unable to download video')
+                raise
             except MaxDownloadsReached:
                 self.to_screen(u'[info] Maximum number of downloaded files reached.')
                 raise

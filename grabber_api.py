@@ -61,12 +61,15 @@ class GrabberApi(object):
                     "outtmpl": "%(title)s-%(id)s.%(ext)s",
                     "skip_download": True,
                     "quiet": True,
-                    "format": self.formats
+                    "format": self.formats,
+                    "verbose": True
                 })
 
                 self.parseResults = inst.download([self.url])['entries'][0]
             except thirdparty_grabber.youtube_dl.utils.DownloadError as e:
-                if "This video does not exist" in e:
+                if "This video does not exist" in str(e):
                     raise myexceptions.FetchingException("YouTube said: This video does not exist.", 511)
-                elif "GEMA" in e:
-                    raise myexceptions.FetchingException("YouTube said: This video does not exist.", 514)
+                if "GEMA" in str(e):
+                    raise myexceptions.FetchingException("BANNED BY GEMA", 514)
+
+                raise myexceptions.FetchingException(str(e), 510)
