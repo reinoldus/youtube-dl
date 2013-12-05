@@ -3,6 +3,7 @@ __author__ = 'gentoo'
 from youtube_dl import YoutubeDL
 import thirdparty_grabber
 import traceback
+import re
 import myexceptions
 
 
@@ -32,7 +33,7 @@ class GrabberApi(object):
     def getVideoTitle(self):
         self._parse()
 
-        return self.parseResults['title']
+        return self.makeSecureTitle(self.parseResults['title'])
 
     def getVideoLength(self):
         self._parse()
@@ -53,6 +54,9 @@ class GrabberApi(object):
         self._parse()
 
         return self.parseResults['ext']
+
+    def makeSecureTitle(self, string):
+        return re.sub(r"[^\w \[\]\(\)äüöÄÜÖ-]", '', string)
 
     def _parse(self):
         if self.parseResults is None:
