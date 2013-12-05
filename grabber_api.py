@@ -1,3 +1,4 @@
+# coding=utf-8
 __author__ = 'gentoo'
 
 from youtube_dl import YoutubeDL
@@ -56,7 +57,16 @@ class GrabberApi(object):
         return self.parseResults['ext']
 
     def makeSecureTitle(self, string):
-        return re.sub(r"[^\w \[\]\(\)äüöÄÜÖ-]", '', string)
+        string = string.replace(u"Ü", u"Ue")\
+            .replace(u"Ä", u"Ae")\
+            .replace(u"Ö", u"Oe")\
+            .replace(u"ü", u"ue")\
+            .replace(u"ä", u"ae")\
+            .replace(u"ö", u"oe")
+        string = re.sub(r"[^\w \[\]\(\)-]", '', string)
+        string = " ".join(string.split())
+
+        return string
 
     def _parse(self):
         if self.parseResults is None:
