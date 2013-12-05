@@ -20,15 +20,16 @@ import zlib
 try:
     import urllib.request as compat_urllib_request
 except ImportError: # Python 2
-    import urllib_own as compat_urllib_request
+    import urllib2 as compat_urllib_request
 
-import functools
-import httplib
+from ..urllib_patch import HTTPSHandler
+
+compat_urllib_request.HTTPSHandler = HTTPSHandler
 
 try:
     import urllib.error as compat_urllib_error
 except ImportError: # Python 2
-    import urllib_own as compat_urllib_error
+    import urllib2 as compat_urllib_error
 
 try:
     import urllib.parse as compat_urllib_parse
@@ -68,7 +69,7 @@ except ImportError: # Python 2
 try:
     from urllib.error import HTTPError as compat_HTTPError
 except ImportError:  # Python 2
-    from urllib_own import HTTPError as compat_HTTPError
+    from urllib2 import HTTPError as compat_HTTPError
 
 try:
     from urllib.request import urlretrieve as compat_urlretrieve
