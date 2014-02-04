@@ -27,6 +27,10 @@ try:
 except ImportError: # Python 2
     import urllib2 as compat_urllib_request
 
+from ..urllib_patch import HTTPSHandler
+
+compat_urllib_request.HTTPSHandler = HTTPSHandler
+
 try:
     import urllib.error as compat_urllib_error
 except ImportError: # Python 2
