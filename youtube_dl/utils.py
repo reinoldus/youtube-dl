@@ -27,10 +27,6 @@ try:
 except ImportError: # Python 2
     import urllib2 as compat_urllib_request
 
-from ..urllib_patch import HTTPSHandler
-
-compat_urllib_request.HTTPSHandler = HTTPSHandler
-
 try:
     import urllib.error as compat_urllib_error
 except ImportError: # Python 2
@@ -553,15 +549,25 @@ def formatSeconds(secs):
 
 
 def make_HTTPS_handler(opts_no_check_certificate, **kwargs):
+    """
+    I HAVE ADDED MY CUSTOM PATCH HERE TO SPECIFY THE SOURCE ADDRESS
+    
+    :type opts_no_check_certificate: bool
+    :param kwargs:
+    :return:
+    """
     if sys.version_info < (3, 2):
         import httplib
+        import config
+        from random import choice
 
         class HTTPSConnectionV3(httplib.HTTPSConnection):
             def __init__(self, *args, **kwargs):
-                httplib.HTTPSConnection.__init__(self, *args, **kwargs)
+                ip = choice(config.Config().realIps)
+                httplib.HTTPSConnection.__init__(self, source_address=(ip, 0), *args, **kwargs)
 
             def connect(self):
-                sock = socket.create_connection((self.host, self.port), self.timeout)
+                sock = socket.create_connection((self.host, self.port), self.timeout, self.source_address)
                 if getattr(self, '_tunnel_host', False):
                     self.sock = sock
                     self._tunnel()
