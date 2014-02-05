@@ -551,7 +551,7 @@ def formatSeconds(secs):
 def make_HTTPS_handler(opts_no_check_certificate, **kwargs):
     """
     I HAVE ADDED MY CUSTOM PATCH HERE TO SPECIFY THE SOURCE ADDRESS
-    
+
     :type opts_no_check_certificate: bool
     :param kwargs:
     :return:
