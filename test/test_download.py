@@ -18,10 +18,12 @@ from test.helper import (
 import hashlib
 import io
 import json
+import re
 import socket
 
 import youtube_dl.YoutubeDL
 from youtube_dl.utils import (
+    compat_http_client,
     compat_str,
     compat_urllib_error,
     compat_HTTPError,
@@ -71,9 +73,7 @@ def generator(test_case):
         if 'playlist' not in test_case:
             info_dict = test_case.get('info_dict', {})
             if not test_case.get('file') and not (info_dict.get('id') and info_dict.get('ext')):
-                print_skipping('The output file cannot be know, the "file" '
-                    'key is missing or the info_dict is incomplete')
-                return
+                raise Exception('Test definition incorrect. The output file cannot be known. Are both \'id\' and \'ext\' keys present?')
         if 'skip' in test_case:
             print_skipping(test_case['skip'])
             return
@@ -110,7 +110,7 @@ def generator(test_case):
                     ydl.download([test_case['url']])
                 except (DownloadError, ExtractorError) as err:
                     # Check if the exception is not a network related one
-                    if not err.exc_info[0] in (compat_urllib_error.URLError, socket.timeout, UnavailableVideoError) or (err.exc_info[0] == compat_HTTPError and err.exc_info[1].code == 503):
+                    if not err.exc_info[0] in (compat_urllib_error.URLError, socket.timeout, UnavailableVideoError, compat_http_client.BadStatusLine) or (err.exc_info[0] == compat_HTTPError and err.exc_info[1].code == 503):
                         raise
 
                     if try_num == RETRIES:
@@ -136,12 +136,21 @@ def generator(test_case):
                 with io.open(info_json_fn, encoding='utf-8') as infof:
                     info_dict = json.load(infof)
                 for (info_field, expected) in tc.get('info_dict', {}).items():
-                    if isinstance(expected, compat_str) and expected.startswith('md5:'):
-                        got = 'md5:' + md5(info_dict.get(info_field))
-                    else:
+                    if isinstance(expected, compat_str) and expected.startswith('re:'):
                         got = info_dict.get(info_field)
-                    self.assertEqual(expected, got,
-                        u'invalid value for field %s, expected %r, got %r' % (info_field, expected, got))
+                        match_str = expected[len('re:'):]
+                        match_rex = re.compile(match_str)
+
+                        self.assertTrue(
+                            isinstance(got, compat_str) and match_rex.match(got),
+                            u'field %s (value: %r) should match %r' % (info_field, got, match_str))
+                    else:
+                        if isinstance(expected, compat_str) and expected.startswith('md5:'):
+                            got = 'md5:' + md5(info_dict.get(info_field))
+                        else:
+                            got = info_dict.get(info_field)
+                        self.assertEqual(expected, got,
+                            u'invalid value for field %s, expected %r, got %r' % (info_field, expected, got))
 
                 # If checkable fields are missing from the test case, print the info_dict
                 test_info_dict = dict((key, value if not isinstance(value, compat_str) or len(value) < 250 else 'md5:' + md5(value))

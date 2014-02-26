@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import contextlib
 import ctypes
 import datetime
 import email.utils
@@ -17,6 +18,7 @@ import platform
 import re
 import ssl
 import socket
+import struct
 import subprocess
 import sys
 import traceback
@@ -172,6 +174,11 @@ try:
     compat_chr = unichr # Python 2
 except NameError:
     compat_chr = chr
+
+try:
+    from xml.etree.ElementTree import ParseError as compat_xml_parse_error
+except ImportError:  # Python 2.6
+    from xml.parsers.expat import ExpatError as compat_xml_parse_error
 
 def compat_ord(c):
     if type(c) is int: return c
@@ -761,15 +768,17 @@ class YoutubeDLHandler(compat_urllib_request.HTTPHandler):
     https_request = http_request
     https_response = http_response
 
+
 def unified_strdate(date_str):
     """Return a string with the date in the format YYYYMMDD"""
     upload_date = None
     #Replace commas
-    date_str = date_str.replace(',',' ')
+    date_str = date_str.replace(',', ' ')
     # %z (UTC offset) is only supported in python>=3.2
-    date_str = re.sub(r' (\+|-)[\d]*$', '', date_str)
+    date_str = re.sub(r' ?(\+|-)[0-9]{2}:?[0-9]{2}$', '', date_str)
     format_expressions = [
         '%d %B %Y',
+        '%d %b %Y',
         '%B %d %Y',
         '%b %d %Y',
         '%Y-%m-%d',
@@ -781,11 +790,13 @@ def unified_strdate(date_str):
         '%Y-%m-%dT%H:%M:%S.%fZ',
         '%Y-%m-%dT%H:%M:%S.%f0Z',
         '%Y-%m-%dT%H:%M:%S',
+        '%Y-%m-%dT%H:%M:%S.%f',
+        '%Y-%m-%dT%H:%M',
     ]
     for expression in format_expressions:
         try:
             upload_date = datetime.datetime.strptime(date_str, expression).strftime('%Y%m%d')
-        except:
+        except ValueError:
             pass
     if upload_date is None:
         timetuple = email.utils.parsedate_tz(date_str)
@@ -1151,7 +1162,7 @@ def parse_duration(s):
         return None
 
     m = re.match(
-        r'(?:(?:(?P<hours>[0-9]+):)?(?P<mins>[0-9]+):)?(?P<secs>[0-9]+)$', s)
+        r'(?:(?:(?P<hours>[0-9]+)[:h])?(?P<mins>[0-9]+)[:m])?(?P<secs>[0-9]+)s?$', s)
     if not m:
         return None
     res = int(m.group('secs'))
@@ -1222,3 +1233,42 @@ class PagedList(object):
             if end == nextfirstid:
                 break
         return res
+
+
+def uppercase_escape(s):
+    return re.sub(
+        r'\\U([0-9a-fA-F]{8})',
+        lambda m: compat_chr(int(m.group(1), base=16)), s)
+
+try:
+    struct.pack(u'!I', 0)
+except TypeError:
+    # In Python 2.6 (and some 2.7 versions), struct requires a bytes argument
+    def struct_pack(spec, *args):
+        if isinstance(spec, compat_str):
+            spec = spec.encode('ascii')
+        return struct.pack(spec, *args)
+
+    def struct_unpack(spec, *args):
+        if isinstance(spec, compat_str):
+            spec = spec.encode('ascii')
+        return struct.unpack(spec, *args)
+else:
+    struct_pack = struct.pack
+    struct_unpack = struct.unpack
+
+
+def read_batch_urls(batch_fd):
+    def fixup(url):
+        if not isinstance(url, compat_str):
+            url = url.decode('utf-8', 'replace')
+        BOM_UTF8 = u'\xef\xbb\xbf'
+        if url.startswith(BOM_UTF8):
+            url = url[len(BOM_UTF8):]
+        url = url.strip()
+        if url.startswith(('#', ';', ']')):
+            return False
+        return url
+
+    with contextlib.closing(batch_fd) as fd:
+        return [url for url in map(fixup, fd) if url]
