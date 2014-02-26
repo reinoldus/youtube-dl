@@ -29,7 +29,7 @@ class GrabberApi(object):
     def getVideoUrl(self):
         self._parse()
         
-        return self.parseResults['url'].replace("https://", "http://")
+        return self.parseResults['url']
 
     def getVideoTitle(self):
         self._parse()
