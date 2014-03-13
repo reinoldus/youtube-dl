@@ -4,7 +4,6 @@ from __future__ import unicode_literals
 
 import os
 import re
-import xml.etree.ElementTree
 
 from .common import InfoExtractor
 from .youtube import YoutubeIE
@@ -17,6 +16,7 @@ from ..utils import (
 
     ExtractorError,
     HEADRequest,
+    parse_xml,
     smuggle_url,
     unescapeHTML,
     unified_strdate,
@@ -83,10 +83,10 @@ class GenericIE(InfoExtractor):
         # Direct link to a video
         {
             'url': 'http://media.w3.org/2010/05/sintel/trailer.mp4',
-            'file': 'trailer.mp4',
             'md5': '67d406c2bcb6af27fa886f31aa934bbe',
             'info_dict': {
                 'id': 'trailer',
+                'ext': 'mp4',
                 'title': 'trailer',
                 'upload_date': '20100513',
             }
@@ -94,13 +94,56 @@ class GenericIE(InfoExtractor):
         # ooyala video
         {
             'url': 'http://www.rollingstone.com/music/videos/norwegian-dj-cashmere-cat-goes-spartan-on-with-me-premiere-20131219',
-            'file': 'BwY2RxaTrTkslxOfcan0UCf0YqyvWysJ.mp4',
             'md5': '5644c6ca5d5782c1d0d350dad9bd840c',
             'info_dict': {
                 'id': 'BwY2RxaTrTkslxOfcan0UCf0YqyvWysJ',
                 'ext': 'mp4',
                 'title': '2cc213299525360.mov',  # that's what we get
             },
+        },
+        # google redirect
+        {
+            'url': 'http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&ved=0CCUQtwIwAA&url=http%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DcmQHVoWB5FY&ei=F-sNU-LLCaXk4QT52ICQBQ&usg=AFQjCNEw4hL29zgOohLXvpJ-Bdh2bils1Q&bvm=bv.61965928,d.bGE',
+            'info_dict': {
+                'id': 'cmQHVoWB5FY',
+                'ext': 'mp4',
+                'upload_date': '20130224',
+                'uploader_id': 'TheVerge',
+                'description': 'Chris Ziegler takes a look at the Alcatel OneTouch Fire and the ZTE Open; two of the first Firefox OS handsets to be officially announced.',
+                'uploader': 'The Verge',
+                'title': 'First Firefox OS phones side-by-side',
+            },
+            'params': {
+                'skip_download': False,
+            }
+        },
+        # embed.ly video
+        {
+            'url': 'http://www.tested.com/science/weird/460206-tested-grinding-coffee-2000-frames-second/',
+            'info_dict': {
+                'id': '9ODmcdjQcHQ',
+                'ext': 'mp4',
+                'title': 'Tested: Grinding Coffee at 2000 Frames Per Second',
+                'upload_date': '20140225',
+                'description': 'md5:06a40fbf30b220468f1e0957c0f558ff',
+                'uploader': 'Tested',
+                'uploader_id': 'testedcom',
+            },
+            # No need to test YoutubeIE here
+            'params': {
+                'skip_download': True,
+            },
+        },
+        # funnyordie embed
+        {
+            'url': 'http://www.theguardian.com/world/2014/mar/11/obama-zach-galifianakis-between-two-ferns',
+            'md5': '7cf780be104d40fea7bae52eed4a470e',
+            'info_dict': {
+                'id': '18e820ec3f',
+                'ext': 'mp4',
+                'title': 'Between Two Ferns with Zach Galifianakis: President Barack Obama',
+                'description': 'Episode 18: President Barack Obama sits down with Zach Galifianakis for his most memorable interview yet.',
+            }
         },
     ]
 
@@ -196,7 +239,7 @@ class GenericIE(InfoExtractor):
             else:
                 assert ':' in default_search
                 return self.url_result(default_search + url)
-        video_id = os.path.splitext(url.split('/')[-1])[0]
+        video_id = os.path.splitext(url.rstrip('/').split('/')[-1])[0]
 
         self.to_screen('%s: Requesting header' % video_id)
 
@@ -242,7 +285,7 @@ class GenericIE(InfoExtractor):
 
         # Is it an RSS feed?
         try:
-            doc = xml.etree.ElementTree.fromstring(webpage.encode('utf-8'))
+            doc = parse_xml(webpage)
             if doc.tag == 'rss':
                 return self._extract_rss(url, video_id, doc)
         except compat_xml_parse_error:
@@ -381,11 +424,32 @@ class GenericIE(InfoExtractor):
         if mobj is not None:
             return self.url_result(mobj.group('url'), 'Facebook')
 
+        # Look for embedded VK player
+        mobj = re.search(r'<iframe[^>]+?src=(["\'])(?P<url>https?://vk\.com/video_ext\.php.+?)\1', webpage)
+        if mobj is not None:
+            return self.url_result(mobj.group('url'), 'VK')
+
         # Look for embedded Huffington Post player
         mobj = re.search(
             r'<iframe[^>]+?src=(["\'])(?P<url>https?://embed\.live\.huffingtonpost\.com/.+?)\1', webpage)
         if mobj is not None:
             return self.url_result(mobj.group('url'), 'HuffPost')
+
+        # Look for embed.ly
+        mobj = re.search(r'class=["\']embedly-card["\'][^>]href=["\'](?P<url>[^"\']+)', webpage)
+        if mobj is not None:
+            return self.url_result(mobj.group('url'))
+        mobj = re.search(r'class=["\']embedly-embed["\'][^>]src=["\'][^"\']*url=(?P<url>[^&]+)', webpage)
+        if mobj is not None:
+            return self.url_result(compat_urllib_parse.unquote(mobj.group('url')))
+
+        # Look for funnyordie embed
+        matches = re.findall(r'<iframe[^>]+?src="(https?://(?:www\.)?funnyordie\.com/embed/[^"]+)"', webpage)
+        if matches:
+            urlrs = [self.url_result(unescapeHTML(eurl), 'FunnyOrDie')
+                     for eurl in matches]
+            return self.playlist_result(
+                urlrs, playlist_id=video_id, playlist_title=video_title)
 
         # Start with something easy: JW Player in SWFObject
         mobj = re.search(r'flashvars: [\'"](?:.*&)?file=(http[^\'"&]*)', webpage)
@@ -411,6 +475,18 @@ class GenericIE(InfoExtractor):
         if mobj is None:
             # HTML5 video
             mobj = re.search(r'<video[^<]*(?:>.*?<source.*?)? src="([^"]+)"', webpage, flags=re.DOTALL)
+        if mobj is None:
+            mobj = re.search(
+                r'(?i)<meta\s+(?=(?:[a-z-]+="[^"]+"\s+)*http-equiv="refresh")'
+                r'(?:[a-z-]+="[^"]+"\s+)*?content="[0-9]{,2};url=\'([^\']+)\'"',
+                webpage)
+            if mobj:
+                new_url = mobj.group(1)
+                self.report_following_redirect(new_url)
+                return {
+                    '_type': 'url',
+                    'url': new_url,
+                }
         if mobj is None:
             raise ExtractorError('Unsupported URL: %s' % url)
 

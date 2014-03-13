@@ -144,6 +144,10 @@ def generator(test_case):
                         self.assertTrue(
                             isinstance(got, compat_str) and match_rex.match(got),
                             u'field %s (value: %r) should match %r' % (info_field, got, match_str))
+                    elif isinstance(expected, type):
+                        got = info_dict.get(info_field)
+                        self.assertTrue(isinstance(got, expected),
+                            u'Expected type %r, but got value %r of type %r' % (expected, got, type(got)))
                     else:
                         if isinstance(expected, compat_str) and expected.startswith('md5:'):
                             got = 'md5:' + md5(info_dict.get(info_field))
@@ -152,19 +156,19 @@ def generator(test_case):
                         self.assertEqual(expected, got,
                             u'invalid value for field %s, expected %r, got %r' % (info_field, expected, got))
 
-                # If checkable fields are missing from the test case, print the info_dict
-                test_info_dict = dict((key, value if not isinstance(value, compat_str) or len(value) < 250 else 'md5:' + md5(value))
-                    for key, value in info_dict.items()
-                    if value and key in ('title', 'description', 'uploader', 'upload_date', 'uploader_id', 'location'))
-                if not all(key in tc.get('info_dict', {}).keys() for key in test_info_dict.keys()):
-                    sys.stderr.write(u'\n"info_dict": ' + json.dumps(test_info_dict, ensure_ascii=False, indent=4) + u'\n')
-
                 # Check for the presence of mandatory fields
                 for key in ('id', 'url', 'title', 'ext'):
                     self.assertTrue(key in info_dict.keys() and info_dict[key])
                 # Check for mandatory fields that are automatically set by YoutubeDL
                 for key in ['webpage_url', 'extractor', 'extractor_key']:
                     self.assertTrue(info_dict.get(key), u'Missing field: %s' % key)
+
+                # If checkable fields are missing from the test case, print the info_dict
+                test_info_dict = dict((key, value if not isinstance(value, compat_str) or len(value) < 250 else 'md5:' + md5(value))
+                    for key, value in info_dict.items()
+                    if value and key in ('title', 'description', 'uploader', 'upload_date', 'timestamp', 'uploader_id', 'location'))
+                if not all(key in tc.get('info_dict', {}).keys() for key in test_info_dict.keys()):
+                    sys.stderr.write(u'\n"info_dict": ' + json.dumps(test_info_dict, ensure_ascii=False, indent=4) + u'\n')
         finally:
             try_rm_tcs_files()
 

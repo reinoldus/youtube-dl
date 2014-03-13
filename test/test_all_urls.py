@@ -71,6 +71,10 @@ class TestAllURLsMatching(unittest.TestCase):
     def test_youtube_truncated(self):
         self.assertMatch('http://www.youtube.com/watch?', ['youtube:truncated_url'])
 
+    def test_youtube_search_matching(self):
+        self.assertMatch('http://www.youtube.com/results?search_query=making+mustard', ['youtube:search_url'])
+        self.assertMatch('https://www.youtube.com/results?baz=bar&search_query=youtube-dl+test+video&filters=video&lclk=video', ['youtube:search_url'])
+
     def test_justin_tv_channelid_matching(self):
         self.assertTrue(JustinTVIE.suitable(u"justin.tv/vanillatv"))
         self.assertTrue(JustinTVIE.suitable(u"twitch.tv/vanillatv"))
@@ -120,6 +124,8 @@ class TestAllURLsMatching(unittest.TestCase):
 
     def test_vimeo_matching(self):
         self.assertMatch('http://vimeo.com/channels/tributes', ['vimeo:channel'])
+        self.assertMatch('http://vimeo.com/channels/31259', ['vimeo:channel'])
+        self.assertMatch('http://vimeo.com/channels/31259/53576664', ['vimeo'])
         self.assertMatch('http://vimeo.com/user7108434', ['vimeo:user'])
         self.assertMatch('http://vimeo.com/user7108434/videos', ['vimeo:user'])
         self.assertMatch('https://vimeo.com/user21297594/review/75524534/3c257a1b5d', ['vimeo:review'])

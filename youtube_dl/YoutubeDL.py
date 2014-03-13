@@ -4,6 +4,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import collections
+import datetime
 import errno
 import io
 import json
@@ -370,12 +371,15 @@ class YoutubeDL(object):
         Print the message to stderr, it will be prefixed with 'WARNING:'
         If stderr is a tty file the 'WARNING:' will be colored
         '''
-        if self._err_file.isatty() and os.name != 'nt':
-            _msg_header = '\033[0;33mWARNING:\033[0m'
+        if self.params.get('logger') is not None:
+            self.params['logger'].warning(message)
         else:
-            _msg_header = 'WARNING:'
-        warning_message = '%s %s' % (_msg_header, message)
-        self.to_stderr(warning_message)
+            if self._err_file.isatty() and os.name != 'nt':
+                _msg_header = '\033[0;33mWARNING:\033[0m'
+            else:
+                _msg_header = 'WARNING:'
+            warning_message = '%s %s' % (_msg_header, message)
+            self.to_stderr(warning_message)
 
     def report_error(self, message, tb=None):
         '''
@@ -409,6 +413,13 @@ class YoutubeDL(object):
             template_dict['autonumber'] = autonumber_templ % self._num_downloads
             if template_dict.get('playlist_index') is not None:
                 template_dict['playlist_index'] = '%05d' % template_dict['playlist_index']
+            if template_dict.get('resolution') is None:
+                if template_dict.get('width') and template_dict.get('height'):
+                    template_dict['resolution'] = '%dx%d' % (template_dict['width'], template_dict['height'])
+                elif template_dict.get('height'):
+                    template_dict['resolution'] = '%sp' % template_dict['height']
+                elif template_dict.get('width'):
+                    template_dict['resolution'] = '?x%d' % template_dict['width']
 
             sanitize = lambda k, v: sanitize_filename(
                 compat_str(v),
@@ -675,6 +686,14 @@ class YoutubeDL(object):
             info_dict['playlist'] = None
             info_dict['playlist_index'] = None
 
+        if 'display_id' not in info_dict and 'id' in info_dict:
+            info_dict['display_id'] = info_dict['id']
+
+        if info_dict.get('upload_date') is None and info_dict.get('timestamp') is not None:
+            upload_date = datetime.datetime.utcfromtimestamp(
+                info_dict['timestamp'])
+            info_dict['upload_date'] = upload_date.strftime('%Y%m%d')
+
         # This extractors handle format selection themselves
         if info_dict['extractor'] in ['Youku']:
             if download:
@@ -688,8 +707,11 @@ class YoutubeDL(object):
         else:
             formats = info_dict['formats']
 
+        if not formats:
+            raise ExtractorError('No video formats found!')
+
         # We check that all the formats have the format and format_id fields
-        for (i, format) in enumerate(formats):
+        for i, format in enumerate(formats):
             if format.get('format_id') is None:
                 format['format_id'] = compat_str(i)
             if format.get('format') is None:
@@ -908,7 +930,7 @@ class YoutubeDL(object):
                     self.to_screen('[%s] %s: Downloading thumbnail ...' %
                                    (info_dict['extractor'], info_dict['id']))
                     try:
-                        uf = compat_urllib_request.urlopen(info_dict['thumbnail'])
+                        uf = self.urlopen(info_dict['thumbnail'])
                         with open(thumb_filename, 'wb') as thumbf:
                             shutil.copyfileobj(uf, thumbf)
                         self.to_screen('[%s] %s: Writing thumbnail to: %s' %
@@ -1154,7 +1176,7 @@ class YoutubeDL(object):
 
     def urlopen(self, req):
         """ Start an HTTP download """
-        return self._opener.open(req)
+        return self._opener.open(req, timeout=self._socket_timeout)
 
     def print_debug_header(self):
         if not self.params.get('verbose'):
@@ -1185,7 +1207,7 @@ class YoutubeDL(object):
 
     def _setup_opener(self):
         timeout_val = self.params.get('socket_timeout')
-        timeout = 600 if timeout_val is None else float(timeout_val)
+        self._socket_timeout = 600 if timeout_val is None else float(timeout_val)
 
         opts_cookiefile = self.params.get('cookiefile')
         opts_proxy = self.params.get('proxy')
@@ -1223,7 +1245,3 @@ class YoutubeDL(object):
         # (See https://github.com/rg3/youtube-dl/issues/1309 for details)
         opener.addheaders = []
         self._opener = opener
-
-        # TODO remove this global modification
-        compat_urllib_request.install_opener(opener)
-        socket.setdefaulttimeout(timeout)

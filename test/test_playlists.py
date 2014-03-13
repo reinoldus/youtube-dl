@@ -36,6 +36,7 @@ from youtube_dl.extractor import (
     RutubeChannelIE,
     GoogleSearchIE,
     GenericIE,
+    TEDIE,
 )
 
 
@@ -98,7 +99,7 @@ class TestPlaylists(unittest.TestCase):
         result = ie.extract('http://www.ustream.tv/channel/young-americans-for-liberty')
         self.assertIsPlaylist(result)
         self.assertEqual(result['id'], '5124905')
-        self.assertTrue(len(result['entries']) >= 11)
+        self.assertTrue(len(result['entries']) >= 6)
 
     def test_soundcloud_set(self):
         dl = FakeYDL()
@@ -248,16 +249,25 @@ class TestPlaylists(unittest.TestCase):
         self.assertIsPlaylist(result)
         self.assertEqual(result['id'], 'python language')
         self.assertEqual(result['title'], 'python language')
-        self.assertTrue(len(result['entries']) == 15)
+        self.assertEqual(len(result['entries']), 15)
 
     def test_generic_rss_feed(self):
         dl = FakeYDL()
         ie = GenericIE(dl)
-        result = ie.extract('http://www.escapistmagazine.com/rss/videos/list/1.xml')
+        result = ie.extract('http://phihag.de/2014/youtube-dl/rss.xml')
         self.assertIsPlaylist(result)
-        self.assertEqual(result['id'], 'http://www.escapistmagazine.com/rss/videos/list/1.xml')
+        self.assertEqual(result['id'], 'http://phihag.de/2014/youtube-dl/rss.xml')
         self.assertEqual(result['title'], 'Zero Punctuation')
         self.assertTrue(len(result['entries']) > 10)
+
+    def test_ted_playlist(self):
+        dl = FakeYDL()
+        ie = TEDIE(dl)
+        result = ie.extract('http://www.ted.com/playlists/who_are_the_hackers')
+        self.assertIsPlaylist(result)
+        self.assertEqual(result['id'], '10')
+        self.assertEqual(result['title'], 'Who are the hackers?')
+        self.assertTrue(len(result['entries']) >= 6)
 
 if __name__ == '__main__':
     unittest.main()

@@ -22,6 +22,7 @@ import struct
 import subprocess
 import sys
 import traceback
+import xml.etree.ElementTree
 import zlib
 
 try:
@@ -782,10 +783,12 @@ def unified_strdate(date_str):
         '%B %d %Y',
         '%b %d %Y',
         '%Y-%m-%d',
+        '%d.%m.%Y',
         '%d/%m/%Y',
         '%Y/%m/%d %H:%M:%S',
         '%Y-%m-%d %H:%M:%S',
         '%d.%m.%Y %H:%M',
+        '%d.%m.%Y %H.%M',
         '%Y-%m-%dT%H:%M:%SZ',
         '%Y-%m-%dT%H:%M:%S.%fZ',
         '%Y-%m-%dT%H:%M:%S.%f0Z',
@@ -1272,3 +1275,17 @@ def read_batch_urls(batch_fd):
 
     with contextlib.closing(batch_fd) as fd:
         return [url for url in map(fixup, fd) if url]
+
+
+def urlencode_postdata(*args, **kargs):
+    return compat_urllib_parse.urlencode(*args, **kargs).encode('ascii')
+
+
+def parse_xml(s):
+    class TreeBuilder(xml.etree.ElementTree.TreeBuilder):
+        def doctype(self, name, pubid, system):
+            pass  # Ignore doctypes
+
+    parser = xml.etree.ElementTree.XMLParser(target=TreeBuilder())
+    kwargs = {'parser': parser} if sys.version_info >= (2, 7) else {}
+    return xml.etree.ElementTree.XML(s.encode('utf-8'), **kwargs)

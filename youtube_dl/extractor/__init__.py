@@ -1,5 +1,6 @@
 from .academicearth import AcademicEarthCourseIE
 from .addanime import AddAnimeIE
+from .aftonbladet import AftonbladetIE
 from .anitube import AnitubeIE
 from .aparat import AparatIE
 from .appletrailers import AppleTrailersIE
@@ -23,9 +24,11 @@ from .br import BRIE
 from .breakcom import BreakIE
 from .brightcove import BrightcoveIE
 from .c56 import C56IE
+from .canal13cl import Canal13clIE
 from .canalplus import CanalplusIE
 from .canalc2 import Canalc2IE
 from .cbs import CBSIE
+from .ceskatelevize import CeskaTelevizeIE
 from .channel9 import Channel9IE
 from .chilloutzone import ChilloutzoneIE
 from .cinemassacre import CinemassacreIE
@@ -50,7 +53,6 @@ from .dailymotion import (
     DailymotionUserIE,
 )
 from .daum import DaumIE
-from .depositfiles import DepositFilesIE
 from .dotsub import DotsubIE
 from .dreisat import DreiSatIE
 from .defense import DefenseGouvFrIE
@@ -89,6 +91,7 @@ from .funnyordie import FunnyOrDieIE
 from .gamekings import GamekingsIE
 from .gamespot import GameSpotIE
 from .gametrailers import GametrailersIE
+from .gdcvault import GDCVaultIE
 from .generic import GenericIE
 from .googleplus import GooglePlusIE
 from .googlesearch import GoogleSearchIE
@@ -133,6 +136,7 @@ from .lynda import (
 )
 from .m6 import M6IE
 from .macgamestore import MacGameStoreIE
+from .mailru import MailRuIE
 from .malemotion import MalemotionIE
 from .mdr import MDRIE
 from .metacafe import MetacafeIE
@@ -171,10 +175,12 @@ from .ooyala import OoyalaIE
 from .orf import ORFIE
 from .pbs import PBSIE
 from .photobucket import PhotobucketIE
+from .playvid import PlayvidIE
 from .podomatic import PodomaticIE
 from .pornhd import PornHdIE
 from .pornhub import PornHubIE
 from .pornotube import PornotubeIE
+from .prosiebensat1 import ProSiebenSat1IE
 from .pyvideo import PyvideoIE
 from .radiofrance import RadioFranceIE
 from .rbmaradio import RBMARadioIE
@@ -234,14 +240,19 @@ from .tube8 import Tube8IE
 from .tudou import TudouIE
 from .tumblr import TumblrIE
 from .tutv import TutvIE
+from .tvigle import TvigleIE
 from .tvp import TvpIE
+from .udemy import (
+    UdemyIE,
+    UdemyCourseIE
+)
 from .unistra import UnistraIE
 from .ustream import UstreamIE, UstreamChannelIE
 from .vbox7 import Vbox7IE
 from .veehd import VeeHDIE
 from .veoh import VeohIE
-from .vesti import VestiIE
 from .vevo import VevoIE
+from .vgtrk import VGTRKIE
 from .vice import ViceIE
 from .viddler import ViddlerIE
 from .videobam import VideoBamIE
@@ -261,6 +272,7 @@ from .viki import VikiIE
 from .vk import VKIE
 from .vube import VubeIE
 from .wat import WatIE
+from .wdr import WDRIE
 from .weibo import WeiboIE
 from .wimp import WimpIE
 from .wistia import WistiaIE
@@ -279,19 +291,20 @@ from .youku import YoukuIE
 from .youporn import YouPornIE
 from .youtube import (
     YoutubeIE,
-    YoutubePlaylistIE,
-    YoutubeSearchIE,
-    YoutubeSearchDateIE,
-    YoutubeUserIE,
     YoutubeChannelIE,
-    YoutubeShowIE,
-    YoutubeSubscriptionsIE,
-    YoutubeRecommendedIE,
-    YoutubeTruncatedURLIE,
-    YoutubeWatchLaterIE,
     YoutubeFavouritesIE,
     YoutubeHistoryIE,
+    YoutubePlaylistIE,
+    YoutubeRecommendedIE,
+    YoutubeSearchDateIE,
+    YoutubeSearchIE,
+    YoutubeSearchURLIE,
+    YoutubeShowIE,
+    YoutubeSubscriptionsIE,
     YoutubeTopListIE,
+    YoutubeTruncatedURLIE,
+    YoutubeUserIE,
+    YoutubeWatchLaterIE,
 )
 from .zdf import ZDFIE
 
