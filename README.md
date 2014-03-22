@@ -36,6 +36,9 @@ which means you can modify it, redistribute it or use it however you like.
                                      an empty string (--proxy "") for direct
                                      connection
     --no-check-certificate           Suppress HTTPS certificate validation.
+    --prefer-insecure                Use an unencrypted connection to retrieve
+                                     information about the video. (Currently
+                                     supported only for YouTube)
     --cache-dir DIR                  Location in the filesystem where youtube-dl
                                      can store some downloaded information
                                      permanently. By default $XDG_CACHE_HOME
@@ -191,9 +194,9 @@ which means you can modify it, redistribute it or use it however you like.
                                      preference using slashes: "-f 22/17/18".
                                      "-f mp4" and "-f flv" are also supported.
                                      You can also use the special names "best",
-                                     "bestaudio", "worst", and "worstaudio". By
-                                     default, youtube-dl will pick the best
-                                     quality.
+                                     "bestvideo", "bestaudio", "worst",
+                                     "worstvideo" and "worstaudio". By default,
+                                     youtube-dl will pick the best quality.
     --all-formats                    download all available video formats
     --prefer-free-formats            prefer free video formats unless a specific
                                      one is requested

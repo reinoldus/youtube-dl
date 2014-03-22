@@ -2,6 +2,7 @@ from .academicearth import AcademicEarthCourseIE
 from .addanime import AddAnimeIE
 from .aftonbladet import AftonbladetIE
 from .anitube import AnitubeIE
+from .aol import AolIE
 from .aparat import AparatIE
 from .appletrailers import AppleTrailersIE
 from .archiveorg import ArchiveOrgIE
@@ -10,6 +11,7 @@ from .arte import (
     ArteTvIE,
     ArteTVPlus7IE,
     ArteTVCreativeIE,
+    ArteTVConcertIE,
     ArteTVFutureIE,
     ArteTVDDCIE,
 )
@@ -63,6 +65,7 @@ from .ehow import EHowIE
 from .eighttracks import EightTracksIE
 from .eitb import EitbIE
 from .elpais import ElPaisIE
+from .engadget import EngadgetIE
 from .escapist import EscapistIE
 from .everyonesmixtape import EveryonesMixtapeIE
 from .exfm import ExfmIE
@@ -71,6 +74,7 @@ from .facebook import FacebookIE
 from .faz import FazIE
 from .firstpost import FirstpostIE
 from .firsttv import FirstTVIE
+from .fivemin import FiveMinIE
 from .fktv import (
     FKTVIE,
     FKTVPosteckeIE,
@@ -173,6 +177,7 @@ from .nowness import NownessIE
 from .nowvideo import NowVideoIE
 from .ooyala import OoyalaIE
 from .orf import ORFIE
+from .parliamentliveuk import ParliamentLiveUKIE
 from .pbs import PBSIE
 from .photobucket import PhotobucketIE
 from .playvid import PlayvidIE
@@ -196,6 +201,7 @@ from .rutube import (
     RutubeMovieIE,
     RutubePersonIE,
 )
+from .rutv import RUTVIE
 from .savefrom import SaveFromIE
 from .servingsys import ServingSysIE
 from .sina import SinaIE
@@ -251,12 +257,13 @@ from .ustream import UstreamIE, UstreamChannelIE
 from .vbox7 import Vbox7IE
 from .veehd import VeeHDIE
 from .veoh import VeohIE
+from .vesti import VestiIE
 from .vevo import VevoIE
-from .vgtrk import VGTRKIE
 from .vice import ViceIE
 from .viddler import ViddlerIE
 from .videobam import VideoBamIE
 from .videodetective import VideoDetectiveIE
+from .videolecturesnet import VideoLecturesNetIE
 from .videofyme import VideofyMeIE
 from .videopremium import VideoPremiumIE
 from .vimeo import (

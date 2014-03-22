@@ -11,7 +11,9 @@ from ..utils import (
 
 
 class TEDIE(SubtitlesInfoExtractor):
-    _VALID_URL = r'''(?x)http://www\.ted\.com/
+    _VALID_URL = r'''(?x)
+        (?P<proto>https?://)
+        (?P<type>www|embed)(?P<urlmain>\.ted\.com/
         (
             (?P<type_playlist>playlists(?:/\d+)?) # We have a playlist
             |
@@ -19,6 +21,7 @@ class TEDIE(SubtitlesInfoExtractor):
         )
         (/lang/(.*?))? # The url may contain the language
         /(?P<name>\w+) # Here goes the name and then ".html"
+        .*)$
         '''
     _TEST = {
         'url': 'http://www.ted.com/talks/dan_dennett_on_our_consciousness.html',
@@ -48,6 +51,9 @@ class TEDIE(SubtitlesInfoExtractor):
 
     def _real_extract(self, url):
         m = re.match(self._VALID_URL, url, re.VERBOSE)
+        if m.group('type') == 'embed':
+            desktop_url = m.group('proto') + 'www' + m.group('urlmain')
+            return self.url_result(desktop_url, 'TED')
         name = m.group('name')
         if m.group('type_talk'):
             return self._talk_info(url, name)
@@ -93,11 +99,14 @@ class TEDIE(SubtitlesInfoExtractor):
             self._list_available_subtitles(video_id, talk_info)
             return
 
+        thumbnail = talk_info['thumb']
+        if not thumbnail.startswith('http'):
+            thumbnail = 'http://' + thumbnail
         return {
             'id': video_id,
             'title': talk_info['title'],
             'uploader': talk_info['speaker'],
-            'thumbnail': talk_info['thumb'],
+            'thumbnail': thumbnail,
             'description': self._og_search_description(webpage),
             'subtitles': video_subtitles,
             'formats': formats,

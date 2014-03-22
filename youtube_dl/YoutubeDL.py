@@ -148,6 +148,8 @@ class YoutubeDL(object):
                        again.
     cookiefile:        File name where cookies should be read from and dumped to.
     nocheckcertificate:Do not verify SSL certificates
+    prefer_insecure:   Use HTTP instead of HTTPS to retrieve information.
+                       At the moment, this is only supported by YouTube.
     proxy:             URL of the proxy server to use
     socket_timeout:    Time to wait for unresponsive hosts, in seconds
     bidi_workaround:   Work around buggy terminals without bidirectional text
@@ -533,7 +535,7 @@ class YoutubeDL(object):
                 else:
                     raise
         else:
-            self.report_error('no suitable InfoExtractor: %s' % url)
+            self.report_error('no suitable InfoExtractor for URL %s' % url)
 
     def process_ie_result(self, ie_result, download=True, extra_info={}):
         """
@@ -667,6 +669,18 @@ class YoutubeDL(object):
                 if f.get('vcodec') == 'none']
             if audio_formats:
                 return audio_formats[0]
+        elif format_spec == 'bestvideo':
+            video_formats = [
+                f for f in available_formats
+                if f.get('acodec') == 'none']
+            if video_formats:
+                return video_formats[-1]
+        elif format_spec == 'worstvideo':
+            video_formats = [
+                f for f in available_formats
+                if f.get('acodec') == 'none']
+            if video_formats:
+                return video_formats[0]
         else:
             extensions = ['mp4', 'flv', 'webm', '3gp']
             if format_spec in extensions:

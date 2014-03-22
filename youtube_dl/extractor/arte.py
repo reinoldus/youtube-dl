@@ -131,7 +131,7 @@ class ArteTvIE(InfoExtractor):
 
 class ArteTVPlus7IE(InfoExtractor):
     IE_NAME = 'arte.tv:+7'
-    _VALID_URL = r'https?://www\.arte.tv/guide/(?P<lang>fr|de)/(?:(?:sendungen|emissions)/)?(?P<id>.*?)/(?P<name>.*?)(\?.*)?'
+    _VALID_URL = r'https?://(?:www\.)?arte\.tv/guide/(?P<lang>fr|de)/(?:(?:sendungen|emissions)/)?(?P<id>.*?)/(?P<name>.*?)(\?.*)?'
 
     @classmethod
     def _extract_url_info(cls, url):
@@ -202,6 +202,8 @@ class ArteTVPlus7IE(InfoExtractor):
                     re.match(r'VO-ST(F|A)', f.get('versionCode', '')) is None,
                     # The version with sourds/mal subtitles has also lower relevance
                     re.match(r'VO?(F|A)-STM\1', f.get('versionCode', '')) is None,
+                    # Prefer http downloads over m3u8
+                    0 if f['url'].endswith('m3u8') else 1,
                 )
         formats = sorted(formats, key=sort_key)
         def _format(format_info):
@@ -242,8 +244,9 @@ class ArteTVCreativeIE(ArteTVPlus7IE):
 
     _TEST = {
         'url': 'http://creative.arte.tv/de/magazin/agentur-amateur-corporate-design',
-        'file': '050489-002.mp4',
         'info_dict': {
+            'id': '050489-002',
+            'ext': 'mp4',
             'title': 'Agentur Amateur / Agence Amateur #2 : Corporate Design',
         },
     }
@@ -255,8 +258,9 @@ class ArteTVFutureIE(ArteTVPlus7IE):
 
     _TEST = {
         'url': 'http://future.arte.tv/fr/sujet/info-sciences#article-anchor-7081',
-        'file': '050940-003.mp4',
         'info_dict': {
+            'id': '050940-003',
+            'ext': 'mp4',
             'title': 'Les champignons au secours de la planète',
         },
     }
@@ -270,7 +274,7 @@ class ArteTVFutureIE(ArteTVPlus7IE):
 
 class ArteTVDDCIE(ArteTVPlus7IE):
     IE_NAME = 'arte.tv:ddc'
-    _VALID_URL = r'http?://ddc\.arte\.tv/(?P<lang>emission|folge)/(?P<id>.+)'
+    _VALID_URL = r'https?://ddc\.arte\.tv/(?P<lang>emission|folge)/(?P<id>.+)'
 
     def _real_extract(self, url):
         video_id, lang = self._extract_url_info(url)
@@ -284,3 +288,20 @@ class ArteTVDDCIE(ArteTVPlus7IE):
         javascriptPlayerGenerator = self._download_webpage(script_url, video_id, 'Download javascript player generator')
         json_url = self._search_regex(r"json_url=(.*)&rendering_place.*", javascriptPlayerGenerator, 'json url')
         return self._extract_from_json_url(json_url, video_id, lang)
+
+
+class ArteTVConcertIE(ArteTVPlus7IE):
+    IE_NAME = 'arte.tv:concert'
+    _VALID_URL = r'https?://concert\.arte\.tv/(?P<lang>de|fr)/(?P<id>.+)'
+
+    _TEST = {
+        'url': 'http://concert.arte.tv/de/notwist-im-pariser-konzertclub-divan-du-monde',
+        'md5': '9ea035b7bd69696b67aa2ccaaa218161',
+        'info_dict': {
+            'id': '186',
+            'ext': 'mp4',
+            'title': 'The Notwist im Pariser Konzertclub "Divan du Monde"',
+            'upload_date': '20140128',
+            'description': 'md5:486eb08f991552ade77439fe6d82c305',
+        },
+    }

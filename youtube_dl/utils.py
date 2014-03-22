@@ -6,6 +6,7 @@ import ctypes
 import datetime
 import email.utils
 import errno
+import getpass
 import gzip
 import itertools
 import io
@@ -772,6 +773,10 @@ class YoutubeDLHandler(compat_urllib_request.HTTPHandler):
 
 def unified_strdate(date_str):
     """Return a string with the date in the format YYYYMMDD"""
+
+    if date_str is None:
+        return None
+
     upload_date = None
     #Replace commas
     date_str = date_str.replace(',', ' ')
@@ -1289,3 +1294,21 @@ def parse_xml(s):
     parser = xml.etree.ElementTree.XMLParser(target=TreeBuilder())
     kwargs = {'parser': parser} if sys.version_info >= (2, 7) else {}
     return xml.etree.ElementTree.XML(s.encode('utf-8'), **kwargs)
+
+
+if sys.version_info < (3, 0) and sys.platform == 'win32':
+    def compat_getpass(prompt, *args, **kwargs):
+        if isinstance(prompt, compat_str):
+            prompt = prompt.encode(preferredencoding())
+        return getpass.getpass(prompt, *args, **kwargs)
+else:
+    compat_getpass = getpass.getpass
+
+
+US_RATINGS = {
+    'G': 0,
+    'PG': 10,
+    'PG-13': 13,
+    'R': 16,
+    'NC': 18,
+}

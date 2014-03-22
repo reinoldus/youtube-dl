@@ -9,7 +9,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-from test.helper import get_testcases
+from test.helper import gettestcases
 
 from youtube_dl.extractor import (
     FacebookIE,
@@ -105,7 +105,7 @@ class TestAllURLsMatching(unittest.TestCase):
 
     def test_no_duplicates(self):
         ies = gen_extractors()
-        for tc in get_testcases():
+        for tc in gettestcases():
             url = tc['url']
             for ie in ies:
                 if type(ie).__name__ in ('GenericIE', tc['name'] + 'IE'):
@@ -141,6 +141,7 @@ class TestAllURLsMatching(unittest.TestCase):
     def test_pbs(self):
         # https://github.com/rg3/youtube-dl/issues/2350
         self.assertMatch('http://video.pbs.org/viralplayer/2365173446/', ['PBS'])
+        self.assertMatch('http://video.pbs.org/widget/partnerplayer/980042464/', ['PBS'])
 
 if __name__ == '__main__':
     unittest.main()

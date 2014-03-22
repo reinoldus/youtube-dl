@@ -56,7 +56,6 @@ __authors__  = (
 __license__ = 'Public Domain'
 
 import codecs
-import getpass
 import io
 import locale
 import optparse
@@ -68,6 +67,7 @@ import sys
 
 
 from .utils import (
+    compat_getpass,
     compat_print,
     DateRange,
     decodeOption,
@@ -238,6 +238,9 @@ def parseOpts(overrideArguments=None):
         help='Use the specified HTTP/HTTPS proxy. Pass in an empty string (--proxy "") for direct connection')
     general.add_option('--no-check-certificate', action='store_true', dest='no_check_certificate', default=False, help='Suppress HTTPS certificate validation.')
     general.add_option(
+        '--prefer-insecure', action='store_true', dest='prefer_insecure',
+        help='Use an unencrypted connection to retrieve information about the video. (Currently supported only for YouTube)')
+    general.add_option(
         '--cache-dir', dest='cachedir', default=get_cachedir(), metavar='DIR',
         help='Location in the filesystem where youtube-dl can store some downloaded information permanently. By default $XDG_CACHE_HOME/youtube-dl or ~/.cache/youtube-dl . At the moment, only YouTube player files (for videos with obfuscated signatures) are cached, but that may change.')
     general.add_option(
@@ -256,7 +259,6 @@ def parseOpts(overrideArguments=None):
         '--ignore-config',
         action='store_true',
         help='Do not read configuration files. When given in the global configuration file /etc/youtube-dl.conf: do not read the user configuration in ~/.config/youtube-dl.conf (%APPDATA%/youtube-dl/config.txt on Windows)')
-
 
     selection.add_option(
         '--playlist-start',
@@ -316,7 +318,7 @@ def parseOpts(overrideArguments=None):
 
     video_format.add_option('-f', '--format',
             action='store', dest='format', metavar='FORMAT', default=None,
-            help='video format code, specify the order of preference using slashes: "-f 22/17/18". "-f mp4" and "-f flv" are also supported. You can also use the special names "best", "bestaudio", "worst", and "worstaudio". By default, youtube-dl will pick the best quality.')
+            help='video format code, specify the order of preference using slashes: "-f 22/17/18". "-f mp4" and "-f flv" are also supported. You can also use the special names "best", "bestvideo", "bestaudio", "worst", "worstvideo" and "worstaudio". By default, youtube-dl will pick the best quality.')
     video_format.add_option('--all-formats',
             action='store_const', dest='format', help='download all available video formats', const='all')
     video_format.add_option('--prefer-free-formats',
@@ -611,7 +613,7 @@ def _real_main(argv=None):
     if opts.usetitle and opts.useid:
         parser.error(u'using title conflicts with using video ID')
     if opts.username is not None and opts.password is None:
-        opts.password = getpass.getpass(u'Type account password and press return:')
+        opts.password = compat_getpass(u'Type account password and press [Return]: ')
     if opts.ratelimit is not None:
         numeric_limit = FileDownloader.parse_bytes(opts.ratelimit)
         if numeric_limit is None:
@@ -756,6 +758,7 @@ def _real_main(argv=None):
         'download_archive': download_archive_fn,
         'cookiefile': opts.cookiefile,
         'nocheckcertificate': opts.no_check_certificate,
+        'prefer_insecure': opts.prefer_insecure,
         'proxy': opts.proxy,
         'socket_timeout': opts.socket_timeout,
         'bidi_workaround': opts.bidi_workaround,

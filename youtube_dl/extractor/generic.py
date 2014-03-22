@@ -24,6 +24,7 @@ from ..utils import (
 )
 from .brightcove import BrightcoveIE
 from .ooyala import OoyalaIE
+from .rutv import RUTVIE
 
 
 class GenericIE(InfoExtractor):
@@ -101,6 +102,20 @@ class GenericIE(InfoExtractor):
                 'title': '2cc213299525360.mov',  # that's what we get
             },
         },
+        # second style of embedded ooyala videos
+        {
+            'url': 'http://www.smh.com.au/tv/business/show/financial-review-sunday/behind-the-scenes-financial-review-sunday--4350201.html',
+            'info_dict': {
+                'id': '13djJjYjptA1XpPx8r9kuzPyj3UZH0Uk',
+                'ext': 'mp4',
+                'title': 'Behind-the-scenes: Financial Review Sunday ',
+                'description': 'Step inside Channel Nine studios for an exclusive tour of its upcoming financial business show.',
+            },
+            'params': {
+                # m3u8 download
+                'skip_download': True,
+            },
+        },
         # google redirect
         {
             'url': 'http://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&ved=0CCUQtwIwAA&url=http%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DcmQHVoWB5FY&ei=F-sNU-LLCaXk4QT52ICQBQ&usg=AFQjCNEw4hL29zgOohLXvpJ-Bdh2bils1Q&bvm=bv.61965928,d.bGE',
@@ -143,7 +158,44 @@ class GenericIE(InfoExtractor):
                 'ext': 'mp4',
                 'title': 'Between Two Ferns with Zach Galifianakis: President Barack Obama',
                 'description': 'Episode 18: President Barack Obama sits down with Zach Galifianakis for his most memorable interview yet.',
+            },
+        },
+        # RUTV embed
+        {
+            'url': 'http://www.rg.ru/2014/03/15/reg-dfo/anklav-anons.html',
+            'info_dict': {
+                'id': '776940',
+                'ext': 'mp4',
+                'title': 'Охотское море стало целиком российским',
+                'description': 'md5:5ed62483b14663e2a95ebbe115eb8f43',
+            },
+            'params': {
+                # m3u8 download
+                'skip_download': True,
+            },
+        },
+        # Embedded TED video
+        {
+            'url': 'http://en.support.wordpress.com/videos/ted-talks/',
+            'md5': 'deeeabcc1085eb2ba205474e7235a3d5',
+            'info_dict': {
+                'id': '981',
+                'ext': 'mp4',
+                'title': 'My web playroom',
+                'uploader': 'Ze Frank',
+                'description': 'md5:ddb2a40ecd6b6a147e400e535874947b',
             }
+        },
+        # nowvideo embed hidden behind percent encoding
+        {
+            'url': 'http://www.waoanime.tv/the-super-dimension-fortress-macross-episode-1/',
+            'md5': '2baf4ddd70f697d94b1c18cf796d5107',
+            'info_dict': {
+                'id': '06e53103ca9aa',
+                'ext': 'flv',
+                'title': 'Macross Episode 001  Watch Macross Episode 001 onl',
+                'description': 'No description',
+            },
         },
     ]
 
@@ -170,9 +222,14 @@ class GenericIE(InfoExtractor):
                     newurl = newurl.replace(' ', '%20')
                     newheaders = dict((k,v) for k,v in req.headers.items()
                                       if k.lower() not in ("content-length", "content-type"))
+                    try:
+                        # This function was deprecated in python 3.3 and removed in 3.4
+                        origin_req_host = req.get_origin_req_host()
+                    except AttributeError:
+                        origin_req_host = req.origin_req_host
                     return HEADRequest(newurl,
                                        headers=newheaders,
-                                       origin_req_host=req.get_origin_req_host(),
+                                       origin_req_host=origin_req_host,
                                        unverifiable=True)
                 else:
                     raise compat_urllib_error.HTTPError(req.get_full_url(), code, msg, headers, fp)
@@ -291,6 +348,11 @@ class GenericIE(InfoExtractor):
         except compat_xml_parse_error:
             pass
 
+        # Sometimes embedded video player is hidden behind percent encoding
+        # (e.g. https://github.com/rg3/youtube-dl/issues/2448)
+        # Unescaping the whole page allows to handle those cases in a generic way
+        webpage = compat_urllib_parse.unquote(webpage)
+
         # it's tempting to parse this further, but you would
         # have to take into account all the variations like
         #   Video Title - Site Name
@@ -324,9 +386,9 @@ class GenericIE(InfoExtractor):
 
         # Look for embedded (iframe) Vimeo player
         mobj = re.search(
-            r'<iframe[^>]+?src="((?:https?:)?//player\.vimeo\.com/video/.+?)"', webpage)
+            r'<iframe[^>]+?src=(["\'])(?P<url>(?:https?:)?//player\.vimeo\.com/video/.+?)\1', webpage)
         if mobj:
-            player_url = unescapeHTML(mobj.group(1))
+            player_url = unescapeHTML(mobj.group('url'))
             surl = smuggle_url(player_url, {'Referer': url})
             return self.url_result(surl, 'Vimeo')
 
@@ -392,9 +454,10 @@ class GenericIE(InfoExtractor):
             return self.url_result(mobj.group('url'))
 
         # Look for Ooyala videos
-        mobj = re.search(r'player.ooyala.com/[^"?]+\?[^"]*?(?:embedCode|ec)=([^"&]+)', webpage)
+        mobj = (re.search(r'player.ooyala.com/[^"?]+\?[^"]*?(?:embedCode|ec)=(?P<ec>[^"&]+)', webpage) or
+             re.search(r'OO.Player.create\([\'"].*?[\'"],\s*[\'"](?P<ec>.{32})[\'"]', webpage))
         if mobj is not None:
-            return OoyalaIE._build_url_result(mobj.group(1))
+            return OoyalaIE._build_url_result(mobj.group('ec'))
 
         # Look for Aparat videos
         mobj = re.search(r'<iframe src="(http://www\.aparat\.com/video/[^"]+)"', webpage)
@@ -451,6 +514,17 @@ class GenericIE(InfoExtractor):
             return self.playlist_result(
                 urlrs, playlist_id=video_id, playlist_title=video_title)
 
+        # Look for embedded RUTV player
+        rutv_url = RUTVIE._extract_url(webpage)
+        if rutv_url:
+            return self.url_result(rutv_url, 'RUTV')
+
+        # Look for embedded TED player
+        mobj = re.search(
+            r'<iframe[^>]+?src=(["\'])(?P<url>http://embed\.ted\.com/.+?)\1', webpage)
+        if mobj is not None:
+            return self.url_result(mobj.group('url'), 'TED')
+
         # Start with something easy: JW Player in SWFObject
         mobj = re.search(r'flashvars: [\'"](?:.*&)?file=(http[^\'"&]*)', webpage)
         if mobj is None:
@@ -462,6 +536,7 @@ class GenericIE(InfoExtractor):
         if mobj is None:
             # Broaden the search a little bit: JWPlayer JS loader
             mobj = re.search(r'[^A-Za-z0-9]?file["\']?:\s*["\'](http(?![^\'"]+\.[0-9]+[\'"])[^\'"]+)["\']', webpage)
+
         if mobj is None:
             # Try to find twitter cards info
             mobj = re.search(r'<meta (?:property|name)="twitter:player:stream" (?:content|value)="(.+?)"', webpage)
