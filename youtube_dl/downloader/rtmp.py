@@ -10,6 +10,7 @@ from .common import FileDownloader
 from ..utils import (
     encodeFilename,
     format_bytes,
+    compat_str,
 )
 
 
@@ -95,6 +96,7 @@ class RtmpFD(FileDownloader):
         flash_version = info_dict.get('flash_version', None)
         live = info_dict.get('rtmp_live', False)
         conn = info_dict.get('rtmp_conn', None)
+        protocol = info_dict.get('rtmp_protocol', None)
 
         self.report_destination(filename)
         tmpfilename = self.temp_name(filename)
@@ -104,7 +106,7 @@ class RtmpFD(FileDownloader):
         try:
             subprocess.call(['rtmpdump', '-h'], stdout=(open(os.path.devnull, 'w')), stderr=subprocess.STDOUT)
         except (OSError, IOError):
-            self.report_error('RTMP download detected but "rtmpdump" could not be run')
+            self.report_error('RTMP download detected but "rtmpdump" could not be run. Please install it.')
             return False
 
         # Download using rtmpdump. rtmpdump returns exit code 2 when
@@ -127,8 +129,13 @@ class RtmpFD(FileDownloader):
             basic_args += ['--flashVer', flash_version]
         if live:
             basic_args += ['--live']
-        if conn:
+        if isinstance(conn, list):
+            for entry in conn:
+                basic_args += ['--conn', entry]
+        elif isinstance(conn, compat_str):
             basic_args += ['--conn', conn]
+        if protocol is not None:
+            basic_args += ['--protocol', protocol]
         args = basic_args + [[], ['--resume', '--skip', '1']][not live and self.params.get('continuedl', False)]
 
         if sys.platform == 'win32' and sys.version_info < (3, 0):

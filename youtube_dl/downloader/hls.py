@@ -13,8 +13,10 @@ class HlsFD(FileDownloader):
         self.report_destination(filename)
         tmpfilename = self.temp_name(filename)
 
-        args = ['-y', '-i', url, '-f', 'mp4', '-c', 'copy',
-            '-bsf:a', 'aac_adtstoasc', tmpfilename]
+        args = [
+            '-y', '-i', url, '-f', 'mp4', '-c', 'copy',
+            '-bsf:a', 'aac_adtstoasc',
+            encodeFilename(tmpfilename, for_subprocess=True)]
 
         for program in ['avconv', 'ffmpeg']:
             try:
@@ -23,7 +25,7 @@ class HlsFD(FileDownloader):
             except (OSError, IOError):
                 pass
         else:
-            self.report_error(u'm3u8 download detected but ffmpeg or avconv could not be found')
+            self.report_error(u'm3u8 download detected but ffmpeg or avconv could not be found. Please install one.')
         cmd = [program] + args
 
         retval = subprocess.call(cmd)

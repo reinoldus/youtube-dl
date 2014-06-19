@@ -9,16 +9,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from test.helper import (
     get_params,
     gettestcases,
-    try_rm,
+    expect_info_dict,
     md5,
-    report_warning
+    try_rm,
+    report_warning,
 )
 
 
 import hashlib
 import io
 import json
-import re
 import socket
 
 import youtube_dl.YoutubeDL
@@ -135,45 +135,8 @@ def generator(test_case):
                     self.assertEqual(md5_for_file, tc['md5'])
                 with io.open(info_json_fn, encoding='utf-8') as infof:
                     info_dict = json.load(infof)
-                for (info_field, expected) in tc.get('info_dict', {}).items():
-                    if isinstance(expected, compat_str) and expected.startswith('re:'):
-                        got = info_dict.get(info_field)
-                        match_str = expected[len('re:'):]
-                        match_rex = re.compile(match_str)
 
-                        self.assertTrue(
-                            isinstance(got, compat_str) and match_rex.match(got),
-                            u'field %s (value: %r) should match %r' % (info_field, got, match_str))
-                    elif isinstance(expected, type):
-                        got = info_dict.get(info_field)
-                        self.assertTrue(isinstance(got, expected),
-                            u'Expected type %r, but got value %r of type %r' % (expected, got, type(got)))
-                    else:
-                        if isinstance(expected, compat_str) and expected.startswith('md5:'):
-                            got = 'md5:' + md5(info_dict.get(info_field))
-                        else:
-                            got = info_dict.get(info_field)
-                        self.assertEqual(expected, got,
-                            u'invalid value for field %s, expected %r, got %r' % (info_field, expected, got))
-
-                # Check for the presence of mandatory fields
-                for key in ('id', 'url', 'title', 'ext'):
-                    self.assertTrue(key in info_dict.keys() and info_dict[key])
-                # Check for mandatory fields that are automatically set by YoutubeDL
-                for key in ['webpage_url', 'extractor', 'extractor_key']:
-                    self.assertTrue(info_dict.get(key), u'Missing field: %s' % key)
-
-                # Are checkable fields missing from the test case definition?
-                test_info_dict = dict((key, value if not isinstance(value, compat_str) or len(value) < 250 else 'md5:' + md5(value))
-                    for key, value in info_dict.items()
-                    if value and key in ('title', 'description', 'uploader', 'upload_date', 'timestamp', 'uploader_id', 'location'))
-                missing_keys = set(test_info_dict.keys()) - set(tc.get('info_dict', {}).keys())
-                if missing_keys:
-                    sys.stderr.write(u'\n"info_dict": ' + json.dumps(test_info_dict, ensure_ascii=False, indent=4) + u'\n')
-                    self.assertFalse(
-                        missing_keys,
-                        'Missing keys in test definition: %s' % (
-                            ','.join(sorted(missing_keys))))
+                expect_info_dict(self, tc.get('info_dict', {}), info_dict)
         finally:
             try_rm_tcs_files()
 

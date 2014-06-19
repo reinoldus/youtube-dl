@@ -18,14 +18,16 @@ class TEDIE(SubtitlesInfoExtractor):
             (?P<type_playlist>playlists(?:/\d+)?) # We have a playlist
             |
             ((?P<type_talk>talks)) # We have a simple talk
+            |
+            (?P<type_watch>watch)/[^/]+/[^/]+
         )
         (/lang/(.*?))? # The url may contain the language
-        /(?P<name>\w+) # Here goes the name and then ".html"
+        /(?P<name>[\w-]+) # Here goes the name and then ".html"
         .*)$
         '''
-    _TEST = {
+    _TESTS = [{
         'url': 'http://www.ted.com/talks/dan_dennett_on_our_consciousness.html',
-        'md5': '4ea1dada91e4174b53dac2bb8ace429d',
+        'md5': 'fc94ac279feebbce69f21c0c6ee82810',
         'info_dict': {
             'id': '102',
             'ext': 'mp4',
@@ -35,13 +37,34 @@ class TEDIE(SubtitlesInfoExtractor):
                 'consciousness, but that half the time our brains are '
                 'actively fooling us.'),
             'uploader': 'Dan Dennett',
+            'width': 854,
         }
-    }
+    }, {
+        'url': 'http://www.ted.com/watch/ted-institute/ted-bcg/vishal-sikka-the-beauty-and-power-of-algorithms',
+        'md5': '226f4fb9c62380d11b7995efa4c87994',
+        'info_dict': {
+            'id': 'vishal-sikka-the-beauty-and-power-of-algorithms',
+            'ext': 'mp4',
+            'title': 'Vishal Sikka: The beauty and power of algorithms',
+            'thumbnail': 're:^https?://.+\.jpg',
+            'description': 'Adaptive, intelligent, and consistent, algorithms are emerging as the ultimate app for everything from matching consumers to products to assessing medical diagnoses. Vishal Sikka shares his appreciation for the algorithm, charting both its inherent beauty and its growing power.',
+        }
+    }, {
+        'url': 'http://www.ted.com/talks/gabby_giffords_and_mark_kelly_be_passionate_be_courageous_be_your_best',
+        'md5': '49144e345a899b8cb34d315f3b9cfeeb',
+        'info_dict': {
+            'id': '1972',
+            'ext': 'mp4',
+            'title': 'Be passionate. Be courageous. Be your best.',
+            'uploader': 'Gabby Giffords and Mark Kelly',
+            'description': 'md5:5174aed4d0f16021b704120360f72b92',
+        },
+    }]
 
-    _FORMATS_PREFERENCE = {
-        'low': 1,
-        'medium': 2,
-        'high': 3,
+    _NATIVE_FORMATS = {
+        'low': {'preference': 1, 'width': 320, 'height': 180},
+        'medium': {'preference': 2, 'width': 512, 'height': 288},
+        'high': {'preference': 3, 'width': 854, 'height': 480},
     }
 
     def _extract_info(self, webpage):
@@ -57,6 +80,8 @@ class TEDIE(SubtitlesInfoExtractor):
         name = m.group('name')
         if m.group('type_talk'):
             return self._talk_info(url, name)
+        elif m.group('type_watch'):
+            return self._watch_info(url, name)
         else:
             return self._playlist_videos_info(url, name)
 
@@ -69,7 +94,7 @@ class TEDIE(SubtitlesInfoExtractor):
         playlist_info = info['playlist']
 
         playlist_entries = [
-            self.url_result(u'http://www.ted.com/talks/' + talk['slug'], self.ie_key())
+            self.url_result('http://www.ted.com/talks/' + talk['slug'], self.ie_key())
             for talk in info['talks']
         ]
         return self.playlist_result(
@@ -84,12 +109,26 @@ class TEDIE(SubtitlesInfoExtractor):
         talk_info = self._extract_info(webpage)['talks'][0]
 
         formats = [{
-            'ext': 'mp4',
             'url': format_url,
             'format_id': format_id,
             'format': format_id,
-            'preference': self._FORMATS_PREFERENCE.get(format_id, -1),
-        } for (format_id, format_url) in talk_info['nativeDownloads'].items()]
+        } for (format_id, format_url) in talk_info['nativeDownloads'].items() if format_url is not None]
+        if formats:
+            for f in formats:
+                finfo = self._NATIVE_FORMATS.get(f['format_id'])
+                if finfo:
+                    f.update(finfo)
+        else:
+            # Use rtmp downloads
+            formats = [{
+                'format_id': f['name'],
+                'url': talk_info['streamer'],
+                'play_path': f['file'],
+                'ext': 'flv',
+                'width': f['width'],
+                'height': f['height'],
+                'tbr': f['bitrate'],
+            } for f in talk_info['resources']['rtmp']]
         self._sort_formats(formats)
 
         video_id = compat_str(talk_info['id'])
@@ -121,5 +160,31 @@ class TEDIE(SubtitlesInfoExtractor):
                 sub_lang_list[l] = url
             return sub_lang_list
         else:
-            self._downloader.report_warning(u'video doesn\'t have subtitles')
+            self._downloader.report_warning('video doesn\'t have subtitles')
             return {}
+
+    def _watch_info(self, url, name):
+        webpage = self._download_webpage(url, name)
+
+        config_json = self._html_search_regex(
+            r"data-config='([^']+)", webpage, 'config')
+        config = json.loads(config_json)
+        video_url = config['video']['url']
+        thumbnail = config.get('image', {}).get('url')
+
+        title = self._html_search_regex(
+            r"(?s)<h1(?:\s+class='[^']+')?>(.+?)</h1>", webpage, 'title')
+        description = self._html_search_regex(
+            [
+                r'(?s)<h4 class="[^"]+" id="h3--about-this-talk">.*?</h4>(.*?)</div>',
+                r'(?s)<p><strong>About this talk:</strong>\s+(.*?)</p>',
+            ],
+            webpage, 'description', fatal=False)
+
+        return {
+            'id': name,
+            'url': video_url,
+            'title': title,
+            'thumbnail': thumbnail,
+            'description': description,
+        }

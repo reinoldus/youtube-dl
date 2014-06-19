@@ -9,8 +9,11 @@ import sys
 import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from test.helper import FakeYDL
-
+from test.helper import (
+    assertRegexpMatches,
+    expect_info_dict,
+    FakeYDL,
+)
 
 from youtube_dl.extractor import (
     AcademicEarthCourseIE,
@@ -20,9 +23,12 @@ from youtube_dl.extractor import (
     VimeoUserIE,
     VimeoAlbumIE,
     VimeoGroupsIE,
+    VineUserIE,
     UstreamChannelIE,
     SoundcloudSetIE,
     SoundcloudUserIE,
+    SoundcloudPlaylistIE,
+    TeacherTubeClassroomIE,
     LivestreamIE,
     NHLVideocenterIE,
     BambuserChannelIE,
@@ -37,6 +43,11 @@ from youtube_dl.extractor import (
     GoogleSearchIE,
     GenericIE,
     TEDIE,
+    ToypicsUserIE,
+    XTubeUserIE,
+    InstagramUserIE,
+    CSpanIE,
+    AolIE,
 )
 
 
@@ -93,13 +104,20 @@ class TestPlaylists(unittest.TestCase):
         self.assertEqual(result['title'], 'Rolex Awards for Enterprise')
         self.assertTrue(len(result['entries']) > 72)
 
+    def test_vine_user(self):
+        dl = FakeYDL()
+        ie = VineUserIE(dl)
+        result = ie.extract('https://vine.co/Visa')
+        self.assertIsPlaylist(result)
+        self.assertTrue(len(result['entries']) >= 50)
+
     def test_ustream_channel(self):
         dl = FakeYDL()
         ie = UstreamChannelIE(dl)
-        result = ie.extract('http://www.ustream.tv/channel/young-americans-for-liberty')
+        result = ie.extract('http://www.ustream.tv/channel/channeljapan')
         self.assertIsPlaylist(result)
-        self.assertEqual(result['id'], '5124905')
-        self.assertTrue(len(result['entries']) >= 6)
+        self.assertEqual(result['id'], '10874166')
+        self.assertTrue(len(result['entries']) >= 54)
 
     def test_soundcloud_set(self):
         dl = FakeYDL()
@@ -116,6 +134,17 @@ class TestPlaylists(unittest.TestCase):
         self.assertIsPlaylist(result)
         self.assertEqual(result['id'], '9615865')
         self.assertTrue(len(result['entries']) >= 12)
+
+    def test_soundcloud_playlist(self):
+        dl = FakeYDL()
+        ie = SoundcloudPlaylistIE(dl)
+        result = ie.extract('http://api.soundcloud.com/playlists/4110309')
+        self.assertIsPlaylist(result)
+        self.assertEqual(result['id'], '4110309')
+        self.assertEqual(result['title'], 'TILT Brass - Bowery Poetry Club, August \'03 [Non-Site SCR 02]')
+        assertRegexpMatches(
+            self, result['description'], r'TILT Brass - Bowery Poetry Club')
+        self.assertEqual(len(result['entries']), 6)
 
     def test_livestream_event(self):
         dl = FakeYDL()
@@ -181,20 +210,20 @@ class TestPlaylists(unittest.TestCase):
     def test_ivi_compilation(self):
         dl = FakeYDL()
         ie = IviCompilationIE(dl)
-        result = ie.extract('http://www.ivi.ru/watch/dezhurnyi_angel')
+        result = ie.extract('http://www.ivi.ru/watch/dvoe_iz_lartsa')
         self.assertIsPlaylist(result)
-        self.assertEqual(result['id'], 'dezhurnyi_angel')
-        self.assertEqual(result['title'], 'Дежурный ангел (2010 - 2012)')
-        self.assertTrue(len(result['entries']) >= 36)
-        
+        self.assertEqual(result['id'], 'dvoe_iz_lartsa')
+        self.assertEqual(result['title'], 'Двое из ларца (2006 - 2008)')
+        self.assertTrue(len(result['entries']) >= 24)
+
     def test_ivi_compilation_season(self):
         dl = FakeYDL()
         ie = IviCompilationIE(dl)
-        result = ie.extract('http://www.ivi.ru/watch/dezhurnyi_angel/season2')
+        result = ie.extract('http://www.ivi.ru/watch/dvoe_iz_lartsa/season1')
         self.assertIsPlaylist(result)
-        self.assertEqual(result['id'], 'dezhurnyi_angel/season2')
-        self.assertEqual(result['title'], 'Дежурный ангел (2010 - 2012) 2 сезон')
-        self.assertTrue(len(result['entries']) >= 20)
+        self.assertEqual(result['id'], 'dvoe_iz_lartsa/season1')
+        self.assertEqual(result['title'], 'Двое из ларца (2006 - 2008) 1 сезон')
+        self.assertTrue(len(result['entries']) >= 12)
         
     def test_imdb_list(self):
         dl = FakeYDL()
@@ -268,6 +297,77 @@ class TestPlaylists(unittest.TestCase):
         self.assertEqual(result['id'], '10')
         self.assertEqual(result['title'], 'Who are the hackers?')
         self.assertTrue(len(result['entries']) >= 6)
+
+    def test_toypics_user(self):
+        dl = FakeYDL()
+        ie = ToypicsUserIE(dl)
+        result = ie.extract('http://videos.toypics.net/Mikey')
+        self.assertIsPlaylist(result)
+        self.assertEqual(result['id'], 'Mikey')
+        self.assertTrue(len(result['entries']) >= 17)
+
+    def test_xtube_user(self):
+        dl = FakeYDL()
+        ie = XTubeUserIE(dl)
+        result = ie.extract('http://www.xtube.com/community/profile.php?user=greenshowers')
+        self.assertIsPlaylist(result)
+        self.assertEqual(result['id'], 'greenshowers')
+        self.assertTrue(len(result['entries']) >= 155)
+
+    def test_InstagramUser(self):
+        dl = FakeYDL()
+        ie = InstagramUserIE(dl)
+        result = ie.extract('http://instagram.com/porsche')
+        self.assertIsPlaylist(result)
+        self.assertEqual(result['id'], 'porsche')
+        self.assertTrue(len(result['entries']) >= 2)
+        test_video = next(
+            e for e in result['entries']
+            if e['id'] == '614605558512799803_462752227')
+        dl.add_default_extra_info(test_video, ie, '(irrelevant URL)')
+        dl.process_video_result(test_video, download=False)
+        EXPECTED = {
+            'id': '614605558512799803_462752227',
+            'ext': 'mp4',
+            'title': '#Porsche Intelligent Performance.',
+            'thumbnail': 're:^https?://.*\.jpg',
+            'uploader': 'Porsche',
+            'uploader_id': 'porsche',
+            'timestamp': 1387486713,
+            'upload_date': '20131219',
+        }
+        expect_info_dict(self, EXPECTED, test_video)
+
+    def test_CSpan_playlist(self):
+        dl = FakeYDL()
+        ie = CSpanIE(dl)
+        result = ie.extract(
+            'http://www.c-span.org/video/?318608-1/gm-ignition-switch-recall')
+        self.assertIsPlaylist(result)
+        self.assertEqual(result['id'], '342759')
+        self.assertEqual(
+            result['title'], 'General Motors Ignition Switch Recall')
+        whole_duration = sum(e['duration'] for e in result['entries'])
+        self.assertEqual(whole_duration, 14855)
+
+    def test_aol_playlist(self):
+        dl = FakeYDL()
+        ie = AolIE(dl)
+        result = ie.extract(
+            'http://on.aol.com/playlist/brace-yourself---todays-weirdest-news-152147?icid=OnHomepageC4_Omg_Img#_videoid=518184316')
+        self.assertIsPlaylist(result)
+        self.assertEqual(result['id'], '152147')
+        self.assertEqual(
+            result['title'], 'Brace Yourself - Today\'s Weirdest News')
+        self.assertTrue(len(result['entries']) >= 10)
+
+    def test_TeacherTubeClassroom(self):
+        dl = FakeYDL()
+        ie = TeacherTubeClassroomIE(dl)
+        result = ie.extract('http://www.teachertube.com/view_classroom.php?user=rbhagwati2')
+        self.assertIsPlaylist(result)
+        self.assertEqual(result['id'], 'rbhagwati2')
+        self.assertTrue(len(result['entries']) >= 20)
 
 if __name__ == '__main__':
     unittest.main()
