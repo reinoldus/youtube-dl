@@ -224,6 +224,7 @@ class YoutubeIE(YoutubeBaseInfoExtractor, SubtitlesInfoExtractor):
         '247': {'ext': 'webm', 'height': 720, 'format_note': 'DASH video', 'acodec': 'none', 'preference': -40},
         '248': {'ext': 'webm', 'height': 1080, 'format_note': 'DASH video', 'acodec': 'none', 'preference': -40},
         '271': {'ext': 'webm', 'height': 1440, 'format_note': 'DASH video', 'acodec': 'none', 'preference': -40},
+        '272': {'ext': 'webm', 'height': 2160, 'format_note': 'DASH video', 'acodec': 'none', 'preference': -40},
 
         # Dash webm audio
         '171': {'ext': 'webm', 'vcodec': 'none', 'format_note': 'DASH audio', 'abr': 48, 'preference': -50},
@@ -1697,14 +1698,14 @@ class YoutubeSearchURLIE(InfoExtractor):
 
         webpage = self._download_webpage(url, query)
         result_code = self._search_regex(
-            r'(?s)<ol id="search-results"(.*?)</ol>', webpage, u'result HTML')
+            r'(?s)<ol class="item-section"(.*?)</ol>', webpage, u'result HTML')
 
         part_codes = re.findall(
             r'(?s)<h3 class="yt-lockup-title">(.*?)</h3>', result_code)
         entries = []
         for part_code in part_codes:
             part_title = self._html_search_regex(
-                r'(?s)title="([^"]+)"', part_code, 'item title', fatal=False)
+                [r'(?s)title="([^"]+)"', r'>([^<]+)</a>'], part_code, 'item title', fatal=False)
             part_url_snippet = self._html_search_regex(
                 r'(?s)href="([^"]+)"', part_code, 'item URL')
             part_url = compat_urlparse.urljoin(
@@ -1824,9 +1825,20 @@ class YoutubeTruncatedURLIE(InfoExtractor):
     IE_NAME = 'youtube:truncated_url'
     IE_DESC = False  # Do not list
     _VALID_URL = r'''(?x)
-        (?:https?://)?[^/]+/watch\?(?:feature=[a-z_]+)?$|
+        (?:https?://)?[^/]+/watch\?(?:
+            feature=[a-z_]+|
+            annotation_id=annotation_[^&]+
+        )?$|
         (?:https?://)?(?:www\.)?youtube\.com/attribution_link\?a=[^&]+$
     '''
+
+    _TESTS = [{
+        'url': 'http://www.youtube.com/watch?annotation_id=annotation_3951667041',
+        'only_matching': True,
+    }, {
+        'url': 'http://www.youtube.com/watch?',
+        'only_matching': True,
+    }]
 
     def _real_extract(self, url):
         raise ExtractorError(
