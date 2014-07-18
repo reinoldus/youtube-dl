@@ -1,5 +1,6 @@
 from .academicearth import AcademicEarthCourseIE
 from .addanime import AddAnimeIE
+from .adultswim import AdultSwimIE
 from .aftonbladet import AftonbladetIE
 from .anitube import AnitubeIE
 from .aol import AolIE
@@ -52,6 +53,7 @@ from .cnn import (
 from .collegehumor import CollegeHumorIE
 from .comedycentral import ComedyCentralIE, ComedyCentralShowsIE
 from .condenast import CondeNastIE
+from .cracked import CrackedIE
 from .criterion import CriterionIE
 from .crunchyroll import CrunchyrollIE
 from .cspan import CSpanIE
@@ -62,6 +64,7 @@ from .dailymotion import (
     DailymotionUserIE,
 )
 from .daum import DaumIE
+from .dfb import DFBIE
 from .dotsub import DotsubIE
 from .dreisat import DreiSatIE
 from .drtv import DRTVIE
@@ -170,6 +173,7 @@ from .metacafe import MetacafeIE
 from .metacritic import MetacriticIE
 from .mit import TechTVMITIE, MITIE, OCWMITIE
 from .mixcloud import MixcloudIE
+from .mlb import MLBIE
 from .mpora import MporaIE
 from .mofosex import MofosexIE
 from .mooshare import MooshareIE
@@ -396,6 +400,7 @@ from .youtube import (
     YoutubeUserIE,
     YoutubeWatchLaterIE,
 )
+
 from .zdf import ZDFIE
 
 
