@@ -999,7 +999,7 @@ class YoutubeDL(object):
                     if info_dict.get('requested_formats') is not None:
                         downloaded = []
                         success = True
-                        merger = FFmpegMergerPP(self)
+                        merger = FFmpegMergerPP(self, not self.params.get('keepvideo'))
                         if not merger._get_executable():
                             postprocessors = []
                             self.report_warning('You have requested multiple '
@@ -1197,6 +1197,10 @@ class YoutubeDL(object):
             if res:
                 res += ', '
             res += format_bytes(fdict['filesize'])
+        elif fdict.get('filesize_approx') is not None:
+            if res:
+                res += ', '
+            res += '~' + format_bytes(fdict['filesize_approx'])
         return res
 
     def list_formats(self, info_dict):
@@ -1230,14 +1234,21 @@ class YoutubeDL(object):
         if not self.params.get('verbose'):
             return
 
-        write_string(
+        encoding_str = (
             '[debug] Encodings: locale %s, fs %s, out %s, pref %s\n' % (
                 locale.getpreferredencoding(),
                 sys.getfilesystemencoding(),
                 sys.stdout.encoding,
-                self.get_encoding()),
-            encoding=None
-        )
+                self.get_encoding()))
+        try:
+            write_string(encoding_str, encoding=None)
+        except:
+            errmsg = 'Failed to write encoding string %r' % encoding_str
+            try:
+                sys.stdout.write(errmsg)
+            except:
+                pass
+            raise IOError(errmsg)
 
         self._write_string('[debug] youtube-dl version ' + __version__ + '\n')
         try:

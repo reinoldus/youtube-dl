@@ -72,11 +72,9 @@ __license__ = 'Public Domain'
 
 import codecs
 import io
-import locale
 import optparse
 import os
 import random
-import re
 import shlex
 import sys
 
@@ -99,7 +97,7 @@ from .utils import (
     write_string,
 )
 from .update import update_self
-from .FileDownloader import (
+from .downloader import (
     FileDownloader,
 )
 from .extractor import gen_extractors
@@ -635,7 +633,7 @@ def _real_main(argv=None):
             if desc is False:
                 continue
             if hasattr(ie, 'SEARCH_KEY'):
-                _SEARCHES = (u'cute kittens', u'slithering pythons', u'falling cat', u'angry poodle', u'purple fish', u'running tortoise')
+                _SEARCHES = (u'cute kittens', u'slithering pythons', u'falling cat', u'angry poodle', u'purple fish', u'running tortoise', u'sleeping bunny')
                 _COUNTS = (u'', u'5', u'10', u'all')
                 desc += u' (Example: "%s%s:%s" )' % (ie.SEARCH_KEY, random.choice(_COUNTS), random.choice(_SEARCHES))
             compat_print(desc)

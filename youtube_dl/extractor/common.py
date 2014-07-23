@@ -69,6 +69,7 @@ class InfoExtractor(object):
                     * vcodec     Name of the video codec in use
                     * container  Name of the container format
                     * filesize   The number of bytes, if known in advance
+                    * filesize_approx  An estimate for the number of bytes
                     * player_url SWF Player URL (used for rtmpdump).
                     * protocol   The protocol that will be used for the actual
                                  download, lower-case.
@@ -300,8 +301,12 @@ class InfoExtractor(object):
     def _download_json(self, url_or_request, video_id,
                        note=u'Downloading JSON metadata',
                        errnote=u'Unable to download JSON metadata',
-                       transform_source=None):
-        json_string = self._download_webpage(url_or_request, video_id, note, errnote)
+                       transform_source=None,
+                       fatal=True):
+        json_string = self._download_webpage(
+            url_or_request, video_id, note, errnote, fatal=fatal)
+        if (not fatal) and json_string is False:
+            return None
         if transform_source:
             json_string = transform_source(json_string)
         try:
@@ -468,7 +473,7 @@ class InfoExtractor(object):
             display_name = name
         return self._html_search_regex(
             r'''(?ix)<meta
-                    (?=[^>]+(?:itemprop|name|property)=["\']%s["\'])
+                    (?=[^>]+(?:itemprop|name|property)=["\']?%s["\']?)
                     [^>]+content=["\']([^"\']+)["\']''' % re.escape(name),
             html, display_name, fatal=fatal, **kwargs)
 
@@ -555,6 +560,7 @@ class InfoExtractor(object):
                 f.get('abr') if f.get('abr') is not None else -1,
                 audio_ext_preference,
                 f.get('filesize') if f.get('filesize') is not None else -1,
+                f.get('filesize_approx') if f.get('filesize_approx') is not None else -1,
                 f.get('format_id'),
             )
         formats.sort(key=_formats_key)

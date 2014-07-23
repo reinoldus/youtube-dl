@@ -253,6 +253,7 @@ from .rutube import (
     RutubePersonIE,
 )
 from .rutv import RUTVIE
+from .sapo import SapoIE
 from .savefrom import SaveFromIE
 from .scivee import SciVeeIE
 from .screencast import ScreencastIE
@@ -266,6 +267,8 @@ from .smotri import (
     SmotriUserIE,
     SmotriBroadcastIE,
 )
+from .snotr import SnotrIE
+from .sockshare import SockshareIE
 from .sohu import SohuIE
 from .soundcloud import (
     SoundcloudIE,
