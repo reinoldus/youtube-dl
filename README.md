@@ -12,7 +12,7 @@ To install it right away for all UNIX users (Linux, OS X, etc.), type:
 
 If you do not have curl, you can alternatively use a recent wget:
 
-    sudo wget https://yt-dl.org/downloads/2014.05.13/youtube-dl -O /usr/local/bin/youtube-dl
+    sudo wget https://yt-dl.org/downloads/latest/youtube-dl -O /usr/local/bin/youtube-dl
     sudo chmod a+x /usr/local/bin/youtube-dl
 
 Windows users can [download a .exe file](https://yt-dl.org/latest/youtube-dl.exe) and place it in their home directory or any other location on their [PATH](http://en.wikipedia.org/wiki/PATH_%28variable%29).
@@ -255,7 +255,7 @@ which means you can modify it, redistribute it or use it however you like.
                                      128K (default 5)
     --recode-video FORMAT            Encode the video to another format if
                                      necessary (currently supported:
-                                     mp4|flv|ogg|webm)
+                                     mp4|flv|ogg|webm|mkv)
     -k, --keep-video                 keeps the video file on disk after the
                                      post-processing; the video is erased by
                                      default
