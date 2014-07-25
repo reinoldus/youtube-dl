@@ -61,7 +61,7 @@ class JSInterpreter(object):
             pass
 
         m = re.match(
-            r'^(?P<var>[a-z]+)\.(?P<member>[^(]+)(?:\(+(?P<args>[^()]*)\))?$',
+            r'^(?P<var>[a-zA-Z0-9_]+)\.(?P<member>[^(]+)(?:\(+(?P<args>[^()]*)\))?$',
             expr)
         if m:
             variable = m.group('var')
@@ -108,7 +108,7 @@ class JSInterpreter(object):
                 index, howMany = argvals
                 res = []
                 for i in range(index, min(index + howMany, len(obj))):
-                    res.append(obj.pop(i))
+                    res.append(obj.pop(index))
                 return res
 
             return obj[member](argvals)
