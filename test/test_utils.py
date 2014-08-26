@@ -219,6 +219,7 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(parse_duration('0h0m0s'), 0)
         self.assertEqual(parse_duration('0m0s'), 0)
         self.assertEqual(parse_duration('0s'), 0)
+        self.assertEqual(parse_duration('01:02:03.05'), 3723.05)
 
     def test_fix_xml_ampersands(self):
         self.assertEqual(
@@ -280,7 +281,7 @@ class TestUtil(unittest.TestCase):
         d = json.loads(stripped)
         self.assertEqual(d, [{"id": "532cb", "x": 3}])
 
-    def test_uppercase_escpae(self):
+    def test_uppercase_escape(self):
         self.assertEqual(uppercase_escape(u'aä'), u'aä')
         self.assertEqual(uppercase_escape(u'\\U0001d550'), u'𝕐')
 

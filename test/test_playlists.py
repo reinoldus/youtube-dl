@@ -1,6 +1,17 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+## DEPRECATED FILE!
+# Add new tests to the extractors themselves, like this:
+# _TEST = {
+#    'url': 'http://example.com/playlist/42',
+#    'playlist_mincount': 99,
+#    'info_dict': {
+#        'id': '42',
+#        'title': 'Playlist number forty-two',
+#    }
+# }
+
 from __future__ import unicode_literals
 
 # Allow direct execution
@@ -51,6 +62,7 @@ from youtube_dl.extractor import (
     InstagramUserIE,
     CSpanIE,
     AolIE,
+    GameOnePlaylistIE,
 )
 
 
@@ -193,10 +205,10 @@ class TestPlaylists(unittest.TestCase):
     def test_bandcamp_album(self):
         dl = FakeYDL()
         ie = BandcampAlbumIE(dl)
-        result = ie.extract('http://mpallante.bandcamp.com/album/nightmare-night-ep')
+        result = ie.extract('http://nightbringer.bandcamp.com/album/hierophany-of-the-open-grave')
         self.assertIsPlaylist(result)
-        self.assertEqual(result['title'], 'Nightmare Night EP')
-        assertGreaterEqual(self, len(result['entries']), 4)
+        self.assertEqual(result['title'], 'Hierophany of the Open Grave')
+        assertGreaterEqual(self, len(result['entries']), 9)
         
     def test_smotri_community(self):
         dl = FakeYDL()
@@ -298,24 +310,6 @@ class TestPlaylists(unittest.TestCase):
         self.assertEqual(result['title'], 'Always/Never: A Little-Seen Movie About Nuclear Command and Control : The New Yorker')
         self.assertEqual(len(result['entries']), 3)
 
-    def test_GoogleSearch(self):
-        dl = FakeYDL()
-        ie = GoogleSearchIE(dl)
-        result = ie.extract('gvsearch15:python language')
-        self.assertIsPlaylist(result)
-        self.assertEqual(result['id'], 'python language')
-        self.assertEqual(result['title'], 'python language')
-        self.assertEqual(len(result['entries']), 15)
-
-    def test_generic_rss_feed(self):
-        dl = FakeYDL()
-        ie = GenericIE(dl)
-        result = ie.extract('http://phihag.de/2014/youtube-dl/rss.xml')
-        self.assertIsPlaylist(result)
-        self.assertEqual(result['id'], 'http://phihag.de/2014/youtube-dl/rss.xml')
-        self.assertEqual(result['title'], 'Zero Punctuation')
-        self.assertTrue(len(result['entries']) > 10)
-
     def test_ted_playlist(self):
         dl = FakeYDL()
         ie = TEDIE(dl)
@@ -395,6 +389,7 @@ class TestPlaylists(unittest.TestCase):
         self.assertIsPlaylist(result)
         self.assertEqual(result['id'], 'rbhagwati2')
         assertGreaterEqual(self, len(result['entries']), 179)
+
 
 if __name__ == '__main__':
     unittest.main()

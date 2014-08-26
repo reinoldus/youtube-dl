@@ -18,6 +18,7 @@ from ..utils import (
     clean_html,
     compiled_regex_type,
     ExtractorError,
+    int_or_none,
     RegexNotFoundError,
     sanitize_filename,
     unescapeHTML,
@@ -83,6 +84,12 @@ class InfoExtractor(object):
                                  format, irrespective of the file format.
                                  -1 for default (order by other properties),
                                  -2 or smaller for less than default.
+                    * http_referer  HTTP Referer header value to set.
+                    * http_method  HTTP method to use for the download.
+                    * http_headers  A dictionary of additional HTTP headers
+                                 to add to the request.
+                    * http_post_data  Additional data to send with a POST
+                                 request.
     url:            Final video URL.
     ext:            Video filename extension.
     format:         The video format, defaults to ext (used for --get-format)
@@ -373,7 +380,8 @@ class InfoExtractor(object):
         else:
             for p in pattern:
                 mobj = re.search(p, string, flags)
-                if mobj: break
+                if mobj:
+                    break
 
         if os.name != 'nt' and sys.stderr.isatty():
             _name = u'\033[0;34m%s\033[0m' % name
@@ -432,6 +440,22 @@ class InfoExtractor(object):
         
         return (username, password)
 
+    def _get_tfa_info(self):
+        """
+        Get the two-factor authentication info
+        TODO - asking the user will be required for sms/phone verify
+        currently just uses the command line option
+        If there's no info available, return None
+        """
+        if self._downloader is None:
+            return None
+        downloader_params = self._downloader.params
+
+        if downloader_params.get('twofactor', None) is not None:
+            return downloader_params['twofactor']
+
+        return None
+
     # Helper functions for extracting OpenGraph info
     @staticmethod
     def _og_regexes(prop):
@@ -461,8 +485,9 @@ class InfoExtractor(object):
         return self._og_search_property('title', html, **kargs)
 
     def _og_search_video_url(self, html, name='video url', secure=True, **kargs):
-        regexes = self._og_regexes('video')
-        if secure: regexes = self._og_regexes('video:secure_url') + regexes
+        regexes = self._og_regexes('video') + self._og_regexes('video:url')
+        if secure:
+            regexes = self._og_regexes('video:secure_url') + regexes
         return self._html_search_regex(regexes, html, name, **kargs)
 
     def _og_search_url(self, html, **kargs):
@@ -588,6 +613,77 @@ class InfoExtractor(object):
         msg = msg_template % {'video_id': video_id, 'timeout': timeout}
         self.to_screen(msg)
         time.sleep(timeout)
+
+    def _extract_f4m_formats(self, manifest_url, video_id):
+        manifest = self._download_xml(
+            manifest_url, video_id, 'Downloading f4m manifest',
+            'Unable to download f4m manifest')
+
+        formats = []
+        media_nodes = manifest.findall('{http://ns.adobe.com/f4m/1.0}media')
+        for i, media_el in enumerate(media_nodes):
+            tbr = int_or_none(media_el.attrib.get('bitrate'))
+            format_id = 'f4m-%d' % (i if tbr is None else tbr)
+            formats.append({
+                'format_id': format_id,
+                'url': manifest_url,
+                'ext': 'flv',
+                'tbr': tbr,
+                'width': int_or_none(media_el.attrib.get('width')),
+                'height': int_or_none(media_el.attrib.get('height')),
+            })
+        self._sort_formats(formats)
+
+        return formats
+
+    def _extract_m3u8_formats(self, m3u8_url, video_id, ext=None):
+        formats = [{
+            'format_id': 'm3u8-meta',
+            'url': m3u8_url,
+            'ext': ext,
+            'protocol': 'm3u8',
+            'preference': -1,
+            'resolution': 'multiple',
+            'format_note': 'Quality selection URL',
+        }]
+
+        m3u8_doc = self._download_webpage(m3u8_url, video_id)
+        last_info = None
+        kv_rex = re.compile(
+            r'(?P<key>[a-zA-Z_-]+)=(?P<val>"[^"]+"|[^",]+)(?:,|$)')
+        for line in m3u8_doc.splitlines():
+            if line.startswith('#EXT-X-STREAM-INF:'):
+                last_info = {}
+                for m in kv_rex.finditer(line):
+                    v = m.group('val')
+                    if v.startswith('"'):
+                        v = v[1:-1]
+                    last_info[m.group('key')] = v
+            elif line.startswith('#') or not line.strip():
+                continue
+            else:
+                tbr = int_or_none(last_info.get('BANDWIDTH'), scale=1000)
+
+                f = {
+                    'format_id': 'm3u8-%d' % (tbr if tbr else len(formats)),
+                    'url': line.strip(),
+                    'tbr': tbr,
+                    'ext': ext,
+                }
+                codecs = last_info.get('CODECS')
+                if codecs:
+                    video, audio = codecs.split(',')
+                    f['vcodec'] = video.partition('.')[0]
+                    f['acodec'] = audio.partition('.')[0]
+                resolution = last_info.get('RESOLUTION')
+                if resolution:
+                    width_str, height_str = resolution.split('x')
+                    f['width'] = int(width_str)
+                    f['height'] = int(height_str)
+                formats.append(f)
+                last_info = {}
+        self._sort_formats(formats)
+        return formats
 
 
 class SearchInfoExtractor(InfoExtractor):

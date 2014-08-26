@@ -102,7 +102,10 @@ def expect_info_dict(self, expected_dict, got_dict):
             match_rex = re.compile(match_str)
 
             self.assertTrue(
-                isinstance(got, compat_str) and match_rex.match(got),
+                isinstance(got, compat_str),
+                'Expected a %r object, but got %r' % (compat_str, type(got)))
+            self.assertTrue(
+                match_rex.match(got),
                 u'field %s (value: %r) should match %r' % (info_field, got, match_str))
         elif isinstance(expected, type):
             got = got_dict.get(info_field)
@@ -117,8 +120,9 @@ def expect_info_dict(self, expected_dict, got_dict):
                 u'invalid value for field %s, expected %r, got %r' % (info_field, expected, got))
 
     # Check for the presence of mandatory fields
-    for key in ('id', 'url', 'title', 'ext'):
-        self.assertTrue(got_dict.get(key), 'Missing mandatory field %s' % key)
+    if got_dict.get('_type') != 'playlist':
+        for key in ('id', 'url', 'title', 'ext'):
+            self.assertTrue(got_dict.get(key), 'Missing mandatory field %s' % key)
     # Check for mandatory fields that are automatically set by YoutubeDL
     for key in ['webpage_url', 'extractor', 'extractor_key']:
         self.assertTrue(got_dict.get(key), u'Missing field: %s' % key)

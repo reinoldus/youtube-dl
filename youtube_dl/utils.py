@@ -24,6 +24,7 @@ import socket
 import struct
 import subprocess
 import sys
+import tempfile
 import traceback
 import xml.etree.ElementTree
 import zlib
@@ -191,6 +192,13 @@ try:
 except ImportError:  # Python 2.6
     from xml.parsers.expat import ExpatError as compat_xml_parse_error
 
+try:
+    from shlex import quote as shlex_quote
+except ImportError:  # Python < 3.3
+    def shlex_quote(s):
+        return "'" + s.replace("'", "'\"'\"'") + "'"
+
+
 def compat_ord(c):
     if type(c) is int: return c
     else: return ord(c)
@@ -228,22 +236,46 @@ else:
         assert type(s) == type(u'')
         print(s)
 
-# In Python 2.x, json.dump expects a bytestream.
-# In Python 3.x, it writes to a character stream
-if sys.version_info < (3,0):
-    def write_json_file(obj, fn):
-        with open(fn, 'wb') as f:
-            json.dump(obj, f)
-else:
-    def write_json_file(obj, fn):
-        with open(fn, 'w', encoding='utf-8') as f:
-            json.dump(obj, f)
 
-if sys.version_info >= (2,7):
+def write_json_file(obj, fn):
+    """ Encode obj as JSON and write it to fn, atomically """
+
+    args = {
+        'suffix': '.tmp',
+        'prefix': os.path.basename(fn) + '.',
+        'dir': os.path.dirname(fn),
+        'delete': False,
+    }
+
+    # In Python 2.x, json.dump expects a bytestream.
+    # In Python 3.x, it writes to a character stream
+    if sys.version_info < (3, 0):
+        args['mode'] = 'wb'
+    else:
+        args.update({
+            'mode': 'w',
+            'encoding': 'utf-8',
+        })
+
+    tf = tempfile.NamedTemporaryFile(**args)
+
+    try:
+        with tf:
+            json.dump(obj, tf)
+        os.rename(tf.name, fn)
+    except:
+        try:
+            os.remove(tf.name)
+        except OSError:
+            pass
+        raise
+
+
+if sys.version_info >= (2, 7):
     def find_xpath_attr(node, xpath, key, val):
         """ Find the xpath xpath[@key=val] """
-        assert re.match(r'^[a-zA-Z]+$', key)
-        assert re.match(r'^[a-zA-Z0-9@\s:._]*$', val)
+        assert re.match(r'^[a-zA-Z-]+$', key)
+        assert re.match(r'^[a-zA-Z0-9@\s:._-]*$', val)
         expr = xpath + u"[@%s='%s']" % (key, val)
         return node.find(expr)
 else:
@@ -744,10 +776,9 @@ class YoutubeDLHandler(compat_urllib_request.HTTPHandler):
         return ret
 
     def http_request(self, req):
-        for h,v in std_headers.items():
-            if h in req.headers:
-                del req.headers[h]
-            req.add_header(h, v)
+        for h, v in std_headers.items():
+            if h not in req.headers:
+                req.add_header(h, v)
         if 'Youtubedl-no-compression' in req.headers:
             if 'Accept-encoding' in req.headers:
                 del req.headers['Accept-encoding']
@@ -837,8 +868,10 @@ def unified_strdate(date_str):
         '%b %dnd %Y %I:%M%p',
         '%b %dth %Y %I:%M%p',
         '%Y-%m-%d',
+        '%Y/%m/%d',
         '%d.%m.%Y',
         '%d/%m/%Y',
+        '%d/%m/%y',
         '%Y/%m/%d %H:%M:%S',
         '%Y-%m-%d %H:%M:%S',
         '%d.%m.%Y %H:%M',
@@ -862,6 +895,8 @@ def unified_strdate(date_str):
     return upload_date
 
 def determine_ext(url, default_ext=u'unknown_video'):
+    if url is None:
+        return default_ext
     guess = url.partition(u'?')[0].rpartition(u'.')[2]
     if re.match(r'^[A-Za-z0-9]+$', guess):
         return guess
@@ -1267,6 +1302,12 @@ def remove_start(s, start):
     return s
 
 
+def remove_end(s, end):
+    if s.endswith(end):
+        return s[:-len(end)]
+    return s
+
+
 def url_basename(url):
     path = compat_urlparse.urlparse(url).path
     return path.strip(u'/').split(u'/')[-1]
@@ -1281,7 +1322,13 @@ def int_or_none(v, scale=1, default=None, get_attr=None, invscale=1):
     if get_attr:
         if v is not None:
             v = getattr(v, get_attr, None)
+    if v == '':
+        v = None
     return default if v is None else (int(v) * invscale // scale)
+
+
+def str_or_none(v, default=None):
+    return default if v is None else compat_str(v)
 
 
 def str_to_int(int_str):
@@ -1300,7 +1347,7 @@ def parse_duration(s):
         return None
 
     m = re.match(
-        r'(?:(?:(?P<hours>[0-9]+)[:h])?(?P<mins>[0-9]+)[:m])?(?P<secs>[0-9]+)s?(?::[0-9]+)?$', s)
+        r'(?:(?:(?P<hours>[0-9]+)[:h])?(?P<mins>[0-9]+)[:m])?(?P<secs>[0-9]+)s?(?::[0-9]+)?(?P<ms>\.[0-9]+)?$', s)
     if not m:
         return None
     res = int(m.group('secs'))
@@ -1308,6 +1355,8 @@ def parse_duration(s):
         res += int(m.group('mins')) * 60
         if m.group('hours'):
             res += int(m.group('hours')) * 60 * 60
+    if m.group('ms'):
+        res += float(m.group('ms'))
     return res
 
 
@@ -1418,6 +1467,12 @@ def urlencode_postdata(*args, **kargs):
     return compat_urllib_parse.urlencode(*args, **kargs).encode('ascii')
 
 
+try:
+    etree_iter = xml.etree.ElementTree.Element.iter
+except AttributeError:  # Python <=2.6
+    etree_iter = lambda n: n.findall('.//*')
+
+
 def parse_xml(s):
     class TreeBuilder(xml.etree.ElementTree.TreeBuilder):
         def doctype(self, name, pubid, system):
@@ -1425,7 +1480,14 @@ def parse_xml(s):
 
     parser = xml.etree.ElementTree.XMLParser(target=TreeBuilder())
     kwargs = {'parser': parser} if sys.version_info >= (2, 7) else {}
-    return xml.etree.ElementTree.XML(s.encode('utf-8'), **kwargs)
+    tree = xml.etree.ElementTree.XML(s.encode('utf-8'), **kwargs)
+    # Fix up XML parser in Python 2.x
+    if sys.version_info < (3, 0):
+        for n in etree_iter(tree):
+            if n.text is not None:
+                if not isinstance(n.text, compat_str):
+                    n.text = n.text.decode('utf-8')
+    return tree
 
 
 if sys.version_info < (3, 0) and sys.platform == 'win32':
@@ -1448,6 +1510,34 @@ US_RATINGS = {
 
 def strip_jsonp(code):
     return re.sub(r'(?s)^[a-zA-Z0-9_]+\s*\(\s*(.*)\);?\s*?\s*$', r'\1', code)
+
+
+def js_to_json(code):
+    def fix_kv(m):
+        key = m.group(2)
+        if key.startswith("'"):
+            assert key.endswith("'")
+            assert '"' not in key
+            key = '"%s"' % key[1:-1]
+        elif not key.startswith('"'):
+            key = '"%s"' % key
+
+        value = m.group(4)
+        if value.startswith("'"):
+            assert value.endswith("'")
+            assert '"' not in value
+            value = '"%s"' % value[1:-1]
+
+        return m.group(1) + key + m.group(3) + value
+
+    res = re.sub(r'''(?x)
+            ([{,]\s*)
+            ("[^"]*"|\'[^\']*\'|[a-z0-9A-Z]+)
+            (:\s*)
+            ([0-9.]+|true|false|"[^"]*"|\'[^\']*\'|\[|\{)
+        ''', fix_kv, code)
+    res = re.sub(r',(\s*\])', lambda m: m.group(1), res)
+    return res
 
 
 def qualities(quality_ids):

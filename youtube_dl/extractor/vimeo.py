@@ -122,6 +122,21 @@ class VimeoIE(VimeoBaseInfoExtractor, SubtitlesInfoExtractor):
             },
         },
         {
+            'url': 'http://vimeo.com/channels/keypeele/75629013',
+            'md5': '2f86a05afe9d7abc0b9126d229bbe15d',
+            'note': 'Video is freely available via original URL '
+                    'and protected with password when accessed via http://vimeo.com/75629013',
+            'info_dict': {
+                'id': '75629013',
+                'ext': 'mp4',
+                'title': 'Key & Peele: Terrorist Interrogation',
+                'description': 'md5:8678b246399b070816b12313e8b4eb5c',
+                'uploader_id': 'atencio',
+                'uploader': 'Peter Atencio',
+                'duration': 187,
+            },
+        },
+        {
             'url': 'http://vimeo.com/76979871',
             'md5': '3363dd6ffebe3784d56f4132317fd446',
             'note': 'Video with subtitles',
@@ -136,6 +151,19 @@ class VimeoIE(VimeoBaseInfoExtractor, SubtitlesInfoExtractor):
                 'duration': 62,
             }
         },
+        {
+            'note': 'video player needs Referer',
+            'url': 'http://vimeo.com/user22258446/review/91613211/13f927e053',
+            'md5': '6295fdab8f4bf6a002d058b2c6dce276',
+            'info_dict': {
+                'id': '91613211',
+                'ext': 'mp4',
+                'title': 'Death by dogma versus assembling agile - Sander Hoogendoorn',
+                'uploader': 'DevWeek Events',
+                'duration': 2773,
+                'thumbnail': 're:^https?://.*\.jpg$',
+            }
+        }
     ]
 
     @classmethod
@@ -190,14 +218,14 @@ class VimeoIE(VimeoBaseInfoExtractor, SubtitlesInfoExtractor):
         if data is not None:
             headers = headers.copy()
             headers.update(data)
+        if 'Referer' not in headers:
+            headers['Referer'] = url
 
         # Extract ID from URL
         mobj = re.match(self._VALID_URL, url)
         video_id = mobj.group('id')
         if mobj.group('pro') or mobj.group('player'):
             url = 'http://player.vimeo.com/video/' + video_id
-        else:
-            url = 'https://vimeo.com/' + video_id
 
         # Retrieve video webpage to extract further information
         request = compat_urllib_request.Request(url, None, headers)
@@ -263,7 +291,7 @@ class VimeoIE(VimeoBaseInfoExtractor, SubtitlesInfoExtractor):
         if video_thumbnail is None:
             video_thumbs = config["video"].get("thumbs")
             if video_thumbs and isinstance(video_thumbs, dict):
-                _, video_thumbnail = sorted((int(width), t_url) for (width, t_url) in video_thumbs.items())[-1]
+                _, video_thumbnail = sorted((int(width if width.isdigit() else 0), t_url) for (width, t_url) in video_thumbs.items())[-1]
 
         # Extract video description
         video_description = None

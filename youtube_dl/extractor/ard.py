@@ -8,6 +8,8 @@ from ..utils import (
     determine_ext,
     ExtractorError,
     qualities,
+    compat_urllib_parse_urlparse,
+    compat_urllib_parse,
 )
 
 
@@ -44,7 +46,13 @@ class ARDIE(InfoExtractor):
         else:
             video_id = m.group('video_id')
 
+        urlp = compat_urllib_parse_urlparse(url)
+        url = urlp._replace(path=compat_urllib_parse.quote(urlp.path.encode('utf-8'))).geturl()
+
         webpage = self._download_webpage(url, video_id)
+
+        if '>Der gewünschte Beitrag ist nicht mehr verfügbar.<' in webpage:
+            raise ExtractorError('Video %s is no longer available' % video_id, expected=True)
 
         title = self._html_search_regex(
             [r'<h1(?:\s+class="boxTopHeadline")?>(.*?)</h1>',
