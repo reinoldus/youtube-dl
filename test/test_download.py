@@ -28,6 +28,7 @@ from youtube_dl.utils import (
     compat_HTTPError,
     DownloadError,
     ExtractorError,
+    format_bytes,
     UnavailableVideoError,
 )
 from youtube_dl.extractor import get_info_extractor
@@ -103,8 +104,11 @@ def generator(test_case):
         def get_tc_filename(tc):
             return tc.get('file') or ydl.prepare_filename(tc.get('info_dict', {}))
 
-        def try_rm_tcs_files():
-            for tc in test_cases:
+        res_dict = None
+        def try_rm_tcs_files(tcs=None):
+            if tcs is None:
+                tcs = test_cases
+            for tc in tcs:
                 tc_filename = get_tc_filename(tc)
                 try_rm(tc_filename)
                 try_rm(tc_filename + '.part')
@@ -148,24 +152,47 @@ def generator(test_case):
                 self.assertEqual(
                     len(res_dict['entries']),
                     test_case['playlist_count'],
-                    'Expected at %d in playlist %s, but got %d.')
+                    'Expected %d entries in playlist %s, but got %d.' % (
+                        test_case['playlist_count'],
+                        test_case['url'],
+                        len(res_dict['entries']),
+                    ))
+            if 'playlist_duration_sum' in test_case:
+                got_duration = sum(e['duration'] for e in res_dict['entries'])
+                self.assertEqual(
+                    test_case['playlist_duration_sum'], got_duration)
 
             for tc in test_cases:
                 tc_filename = get_tc_filename(tc)
                 if not test_case.get('params', {}).get('skip_download', False):
                     self.assertTrue(os.path.exists(tc_filename), msg='Missing file ' + tc_filename)
                     self.assertTrue(tc_filename in finished_hook_called)
+                    expected_minsize = tc.get('file_minsize', 10000)
+                    if expected_minsize is not None:
+                        if params.get('test'):
+                            expected_minsize = max(expected_minsize, 10000)
+                        got_fsize = os.path.getsize(tc_filename)
+                        assertGreaterEqual(
+                            self, got_fsize, expected_minsize,
+                            'Expected %s to be at least %s, but it\'s only %s ' %
+                            (tc_filename, format_bytes(expected_minsize),
+                                format_bytes(got_fsize)))
+                    if 'md5' in tc:
+                        md5_for_file = _file_md5(tc_filename)
+                        self.assertEqual(md5_for_file, tc['md5'])
                 info_json_fn = os.path.splitext(tc_filename)[0] + '.info.json'
                 self.assertTrue(os.path.exists(info_json_fn))
-                if 'md5' in tc:
-                    md5_for_file = _file_md5(tc_filename)
-                    self.assertEqual(md5_for_file, tc['md5'])
                 with io.open(info_json_fn, encoding='utf-8') as infof:
                     info_dict = json.load(infof)
 
                 expect_info_dict(self, tc.get('info_dict', {}), info_dict)
         finally:
             try_rm_tcs_files()
+            if is_playlist and res_dict is not None:
+                # Remove all other files that may have been extracted if the
+                # extractor returns full results even with extract_flat
+                res_tcs = [{'info_dict': e} for e in res_dict['entries']]
+                try_rm_tcs_files(res_tcs)
 
     return test_template
 

@@ -12,6 +12,7 @@ from ..utils import (
     compat_urlparse,
     compat_xml_parse_error,
 
+    determine_ext,
     ExtractorError,
     float_or_none,
     HEADRequest,
@@ -351,6 +352,20 @@ class GenericIE(InfoExtractor):
                 'description': 're:'
             },
             'playlist_mincount': 11,
+        },
+        # Multiple brightcove videos
+        # https://github.com/rg3/youtube-dl/issues/2283
+        {
+            'url': 'http://www.newyorker.com/online/blogs/newsdesk/2014/01/always-never-nuclear-command-and-control.html',
+            'info_dict': {
+                'id': 'always-never',
+                'title': 'Always / Never - The New Yorker',
+            },
+            'playlist_count': 3,
+            'params': {
+                'extract_flat': False,
+                'skip_download': True,
+            }
         }
     ]
 
@@ -830,13 +845,14 @@ class GenericIE(InfoExtractor):
             if m_video_type is not None:
                 def check_video(vurl):
                     vpath = compat_urlparse.urlparse(vurl).path
-                    return '.' in vpath and not vpath.endswith('.swf')
+                    vext = determine_ext(vpath)
+                    return '.' in vpath and vext not in ('swf', 'png', 'jpg')
                 found = list(filter(
                     check_video,
                     re.findall(r'<meta.*?property="og:video".*?content="(.*?)"', webpage)))
         if not found:
             # HTML5 video
-            found = re.findall(r'(?s)<video[^<]*(?:>.*?<source.*?)? src="([^"]+)"', webpage)
+            found = re.findall(r'(?s)<video[^<]*(?:>.*?<source[^>]+)? src="([^"]+)"', webpage)
         if not found:
             found = re.search(
                 r'(?i)<meta\s+(?=(?:[a-z-]+="[^"]+"\s+)*http-equiv="refresh")'

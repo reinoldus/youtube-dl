@@ -9,7 +9,7 @@ from .allocine import AllocineIE
 from .aparat import AparatIE
 from .appletrailers import AppleTrailersIE
 from .archiveorg import ArchiveOrgIE
-from .ard import ARDIE
+from .ard import ARDIE, ARDMediathekIE
 from .arte import (
     ArteTvIE,
     ArteTVPlus7IE,
@@ -209,6 +209,7 @@ from .mtv import (
     MTVIggyIE,
 )
 from .musicplayon import MusicPlayOnIE
+from .musicvault import MusicVaultIE
 from .muzu import MuzuTVIE
 from .myspace import MySpaceIE
 from .myspass import MySpassIE
@@ -256,6 +257,7 @@ from .podomatic import PodomaticIE
 from .pornhd import PornHdIE
 from .pornhub import PornHubIE
 from .pornotube import PornotubeIE
+from .promptfile import PromptFileIE
 from .prosiebensat1 import ProSiebenSat1IE
 from .pyvideo import PyvideoIE
 from .radiofrance import RadioFranceIE
