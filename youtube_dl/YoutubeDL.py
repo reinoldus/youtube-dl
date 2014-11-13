@@ -162,6 +162,7 @@ class YoutubeDL(object):
     default_search:    Prepend this string if an input url is not valid.
                        'auto' for elaborate guessing
     encoding:          Use this encoding instead of the system-specified.
+    extract_flat:      Do not resolve URLs, return the immediate result.
 
     The following parameters are not used by YoutubeDL itself, they are used by
     the FileDownloader:
@@ -171,6 +172,7 @@ class YoutubeDL(object):
     The following options are used by the post processors:
     prefer_ffmpeg:     If True, use ffmpeg instead of avconv if both are available,
                        otherwise prefer avconv.
+    exec_cmd:          Arbitrary command to run after downloading
     """
 
     params = None
@@ -275,7 +277,7 @@ class YoutubeDL(object):
             return message
 
         assert hasattr(self, '_output_process')
-        assert type(message) == type('')
+        assert isinstance(message, compat_str)
         line_count = message.count('\n') + 1
         self._output_process.stdin.write((message + '\n').encode('utf-8'))
         self._output_process.stdin.flush()
@@ -303,7 +305,7 @@ class YoutubeDL(object):
 
     def to_stderr(self, message):
         """Print message to stderr."""
-        assert type(message) == type('')
+        assert isinstance(message, compat_str)
         if self.params.get('logger'):
             self.params['logger'].error(message)
         else:
@@ -423,7 +425,7 @@ class YoutubeDL(object):
             autonumber_templ = '%0' + str(autonumber_size) + 'd'
             template_dict['autonumber'] = autonumber_templ % self._num_downloads
             if template_dict.get('playlist_index') is not None:
-                template_dict['playlist_index'] = '%05d' % template_dict['playlist_index']
+                template_dict['playlist_index'] = '%0*d' % (len(str(template_dict['n_entries'])), template_dict['playlist_index'])
             if template_dict.get('resolution') is None:
                 if template_dict.get('width') and template_dict.get('height'):
                     template_dict['resolution'] = '%dx%d' % (template_dict['width'], template_dict['height'])
@@ -479,7 +481,10 @@ class YoutubeDL(object):
                 return 'Skipping %s, because it has exceeded the maximum view count (%d/%d)' % (video_title, view_count, max_views)
         age_limit = self.params.get('age_limit')
         if age_limit is not None:
-            if age_limit < info_dict.get('age_limit', 0):
+            actual_age_limit = info_dict.get('age_limit')
+            if actual_age_limit is None:
+                actual_age_limit = 0
+            if age_limit < actual_age_limit:
                 return 'Skipping "' + title + '" because it is age restricted'
         if self.in_download_archive(info_dict):
             return '%s has already been recorded in archive' % video_title
@@ -558,7 +563,12 @@ class YoutubeDL(object):
         Returns the resolved ie_result.
         """
 
-        result_type = ie_result.get('_type', 'video') # If not given we suppose it's a video, support the default old system
+        result_type = ie_result.get('_type', 'video')
+
+        if self.params.get('extract_flat', False):
+            if result_type in ('url', 'url_transparent'):
+                return ie_result
+
         if result_type == 'video':
             self.add_extra_info(ie_result, extra_info)
             return self.process_video_result(ie_result, download=download)
@@ -627,6 +637,7 @@ class YoutubeDL(object):
             for i, entry in enumerate(entries, 1):
                 self.to_screen('[download] Downloading video #%s of %s' % (i, n_entries))
                 extra = {
+                    'n_entries': n_entries,
                     'playlist': playlist,
                     'playlist_index': i + playliststart,
                     'extractor': ie_result['extractor'],
@@ -849,7 +860,7 @@ class YoutubeDL(object):
         # Keep for backwards compatibility
         info_dict['stitle'] = info_dict['title']
 
-        if not 'format' in info_dict:
+        if 'format' not in info_dict:
             info_dict['format'] = info_dict['ext']
 
         reason = self._match_entry(info_dict)

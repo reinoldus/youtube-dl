@@ -66,6 +66,14 @@ __authors__  = (
     'Naglis Jonaitis',
     'Charles Chen',
     'Hassaan Ali',
+    'Dobrosław Żybort',
+    'David Fabijan',
+    'Sebastian Haas',
+    'Alexander Kirk',
+    'Erik Johnson',
+    'Keith Beckman',
+    'Ole Ernst',
+    'Aaron McDaniel (mcd1992)',
 )
 
 __license__ = 'Public Domain'
@@ -112,6 +120,7 @@ from .postprocessor import (
     FFmpegExtractAudioPP,
     FFmpegEmbedSubtitlePP,
     XAttrMetadataPP,
+    ExecAfterDownloadPP,
 )
 
 
@@ -253,12 +262,9 @@ def parseOpts(overrideArguments=None):
         '--socket-timeout', dest='socket_timeout',
         type=float, default=None, help=u'Time to wait before giving up, in seconds')
     general.add_option(
-        '--bidi-workaround', dest='bidi_workaround', action='store_true',
-        help=u'Work around terminals that lack bidirectional text support. Requires bidiv or fribidi executable in PATH')
-    general.add_option(
         '--default-search',
         dest='default_search', metavar='PREFIX',
-        help='Use this prefix for unqualified URLs. For example "gvsearch2:" downloads two videos from google videos for  youtube-dl "large apple". Use the value "auto" to let youtube-dl guess. The default value "error" just throws an error.')
+        help='Use this prefix for unqualified URLs. For example "gvsearch2:" downloads two videos from google videos for  youtube-dl "large apple". Use the value "auto" to let youtube-dl guess ("auto_warning" to emit a warning when guessing). "error" just throws an error. The default value "fixup_error" repairs broken URLs, but emits an error if this is not possible instead of searching.')
     general.add_option(
         '--ignore-config',
         action='store_true',
@@ -314,6 +320,8 @@ def parseOpts(overrideArguments=None):
             dest='username', metavar='USERNAME', help='account username')
     authentication.add_option('-p', '--password',
             dest='password', metavar='PASSWORD', help='account password')
+    authentication.add_option('-2', '--twofactor',
+            dest='twofactor', metavar='TWOFACTOR', help='two-factor auth code')
     authentication.add_option('-n', '--netrc',
             action='store_true', dest='usenetrc', help='use .netrc authentication data', default=False)
     authentication.add_option('--video-password',
@@ -386,6 +394,9 @@ def parseOpts(overrideArguments=None):
         dest='headers', action='append',
         help='specify a custom HTTP header and its value, separated by a colon \':\'. You can use this option multiple times',
     )
+    workarounds.add_option(
+        '--bidi-workaround', dest='bidi_workaround', action='store_true',
+        help=u'Work around terminals that lack bidirectional text support. Requires bidiv or fribidi executable in PATH')
 
     verbosity.add_option('-q', '--quiet',
             action='store_true', dest='quiet', help='activates quiet mode', default=False)
@@ -541,7 +552,9 @@ def parseOpts(overrideArguments=None):
         help='Prefer avconv over ffmpeg for running the postprocessors (default)')
     postproc.add_option('--prefer-ffmpeg', action='store_true', dest='prefer_ffmpeg',
         help='Prefer ffmpeg over avconv for running the postprocessors')
-
+    postproc.add_option(
+        '--exec', metavar='CMD', dest='exec_cmd',
+        help='Execute a command on the file after downloading, similar to find\'s -exec syntax. Example: --exec \'adb push {} /sdcard/Music/ && rm {}\'' )
 
     parser.add_option_group(general)
     parser.add_option_group(selection)
@@ -709,7 +722,7 @@ def _real_main(argv=None):
         date = DateRange.day(opts.date)
     else:
         date = DateRange(opts.dateafter, opts.datebefore)
-    if opts.default_search not in ('auto', 'auto_warning', None) and ':' not in opts.default_search:
+    if opts.default_search not in ('auto', 'auto_warning', 'error', 'fixup_error', None) and ':' not in opts.default_search:
         parser.error(u'--default-search invalid; did you forget a colon (:) at the end?')
 
     # Do not download videos when there are audio-only formats
@@ -745,6 +758,7 @@ def _real_main(argv=None):
         'usenetrc': opts.usenetrc,
         'username': opts.username,
         'password': opts.password,
+        'twofactor': opts.twofactor,
         'videopassword': opts.videopassword,
         'quiet': (opts.quiet or any_printing),
         'no_warnings': opts.no_warnings,
@@ -821,6 +835,7 @@ def _real_main(argv=None):
         'default_search': opts.default_search,
         'youtube_include_dash_manifest': opts.youtube_include_dash_manifest,
         'encoding': opts.encoding,
+        'exec_cmd': opts.exec_cmd,
     }
 
     with YoutubeDL(ydl_opts) as ydl:
@@ -843,6 +858,13 @@ def _real_main(argv=None):
             if not opts.addmetadata:
                 ydl.add_post_processor(FFmpegAudioFixPP())
             ydl.add_post_processor(AtomicParsleyPP())
+
+
+        # Please keep ExecAfterDownload towards the bottom as it allows the user to modify the final file in any way.
+        # So if the user is able to remove the file before your postprocessor runs it might cause a few problems.
+        if opts.exec_cmd:
+            ydl.add_post_processor(ExecAfterDownloadPP(
+                verboseOutput=opts.verbose, exec_cmd=opts.exec_cmd))
 
         # Update version
         if opts.update_self:

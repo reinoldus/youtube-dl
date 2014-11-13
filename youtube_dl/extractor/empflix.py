@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import re
 
 from .common import InfoExtractor
+from ..utils import fix_xml_ampersands
 
 
 class EmpflixIE(InfoExtractor):
@@ -36,7 +37,8 @@ class EmpflixIE(InfoExtractor):
             webpage, 'flashvars.config')
 
         cfg_xml = self._download_xml(
-            cfg_url, video_id, note='Downloading metadata')
+            cfg_url, video_id, note='Downloading metadata',
+            transform_source=fix_xml_ampersands)
 
         formats = [
             {
@@ -44,11 +46,13 @@ class EmpflixIE(InfoExtractor):
                 'format_id': item.find('res').text,
             } for item in cfg_xml.findall('./quality/item')
         ]
+        thumbnail = cfg_xml.find('./startThumb').text
 
         return {
             'id': video_id,
             'title': video_title,
             'description': video_description,
+            'thumbnail': thumbnail,
             'formats': formats,
             'age_limit': age_limit,
         }

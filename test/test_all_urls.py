@@ -99,6 +99,7 @@ class TestAllURLsMatching(unittest.TestCase):
 
     def test_facebook_matching(self):
         self.assertTrue(FacebookIE.suitable('https://www.facebook.com/Shiniknoh#!/photo.php?v=10153317450565268'))
+        self.assertTrue(FacebookIE.suitable('https://www.facebook.com/cindyweather?fref=ts#!/photo.php?v=10152183998945793'))
 
     def test_no_duplicates(self):
         ies = gen_extractors()
@@ -108,7 +109,9 @@ class TestAllURLsMatching(unittest.TestCase):
                 if type(ie).__name__ in ('GenericIE', tc['name'] + 'IE'):
                     self.assertTrue(ie.suitable(url), '%s should match URL %r' % (type(ie).__name__, url))
                 else:
-                    self.assertFalse(ie.suitable(url), '%s should not match URL %r' % (type(ie).__name__, url))
+                    self.assertFalse(
+                        ie.suitable(url),
+                        '%s should not match URL %r . That URL belongs to %s.' % (type(ie).__name__, url, tc['name']))
 
     def test_keywords(self):
         self.assertMatch(':ytsubs', ['youtube:subscriptions'])

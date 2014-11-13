@@ -37,6 +37,7 @@ from ..utils import (
 class YoutubeBaseInfoExtractor(InfoExtractor):
     """Provide base functions for Youtube extractors"""
     _LOGIN_URL = 'https://accounts.google.com/ServiceLogin'
+    _TWOFACTOR_URL = 'https://accounts.google.com/SecondFactor'
     _LANG_URL = r'https://www.youtube.com/?hl=en&persist_hl=1&gl=US&persist_gl=1&opt_out_ackd=1'
     _AGE_URL = 'https://www.youtube.com/verify_age?next_url=/&gl=US&hl=en'
     _NETRC_MACHINE = 'youtube'
@@ -50,12 +51,19 @@ class YoutubeBaseInfoExtractor(InfoExtractor):
             fatal=False))
 
     def _login(self):
+        """
+        Attempt to log in to YouTube.
+        True is returned if successful or skipped.
+        False is returned if login failed.
+
+        If _LOGIN_REQUIRED is set and no authentication was provided, an error is raised.
+        """
         (username, password) = self._get_login_info()
         # No authentication to be performed
         if username is None:
             if self._LOGIN_REQUIRED:
                 raise ExtractorError(u'No login info available, needed for using %s.' % self.IE_NAME, expected=True)
-            return False
+            return True
 
         login_page = self._download_webpage(
             self._LOGIN_URL, None,
@@ -73,6 +81,7 @@ class YoutubeBaseInfoExtractor(InfoExtractor):
                 u'Email': username,
                 u'GALX': galx,
                 u'Passwd': password,
+
                 u'PersistentCookie': u'yes',
                 u'_utf8': u'霱',
                 u'bgresponse': u'js_disabled',
@@ -88,6 +97,7 @@ class YoutubeBaseInfoExtractor(InfoExtractor):
                 u'uilel': u'3',
                 u'hl': u'en_US',
         }
+
         # Convert to UTF-8 *before* urlencode because Python 2.x's urlencode
         # chokes on unicode
         login_form = dict((k.encode('utf-8'), v.encode('utf-8')) for k,v in login_form_strs.items())
@@ -99,6 +109,68 @@ class YoutubeBaseInfoExtractor(InfoExtractor):
             note=u'Logging in', errnote=u'unable to log in', fatal=False)
         if login_results is False:
             return False
+
+        if re.search(r'id="errormsg_0_Passwd"', login_results) is not None:
+            raise ExtractorError(u'Please use your account password and a two-factor code instead of an application-specific password.', expected=True)
+
+        # Two-Factor
+        # TODO add SMS and phone call support - these require making a request and then prompting the user
+
+        if re.search(r'(?i)<form[^>]* id="gaia_secondfactorform"', login_results) is not None:
+            tfa_code = self._get_tfa_info()
+
+            if tfa_code is None:
+                self._downloader.report_warning(u'Two-factor authentication required. Provide it with --twofactor <code>')
+                self._downloader.report_warning(u'(Note that only TOTP (Google Authenticator App) codes work at this time.)')
+                return False
+
+            # Unlike the first login form, secTok and timeStmp are both required for the TFA form
+
+            match = re.search(r'id="secTok"\n\s+value=\'(.+)\'/>', login_results, re.M | re.U)
+            if match is None:
+                self._downloader.report_warning(u'Failed to get secTok - did the page structure change?')
+            secTok = match.group(1)
+            match = re.search(r'id="timeStmp"\n\s+value=\'(.+)\'/>', login_results, re.M | re.U)
+            if match is None:
+                self._downloader.report_warning(u'Failed to get timeStmp - did the page structure change?')
+            timeStmp = match.group(1)
+
+            tfa_form_strs = {
+                u'continue': u'https://www.youtube.com/signin?action_handle_signin=true&feature=sign_in_button&hl=en_US&nomobiletemp=1',
+                u'smsToken': u'',
+                u'smsUserPin': tfa_code,
+                u'smsVerifyPin': u'Verify',
+
+                u'PersistentCookie': u'yes',
+                u'checkConnection': u'',
+                u'checkedDomains': u'youtube',
+                u'pstMsg': u'1',
+                u'secTok': secTok,
+                u'timeStmp': timeStmp,
+                u'service': u'youtube',
+                u'hl': u'en_US',
+            }
+            tfa_form = dict((k.encode('utf-8'), v.encode('utf-8')) for k,v in tfa_form_strs.items())
+            tfa_data = compat_urllib_parse.urlencode(tfa_form).encode('ascii')
+
+            tfa_req = compat_urllib_request.Request(self._TWOFACTOR_URL, tfa_data)
+            tfa_results = self._download_webpage(
+                tfa_req, None,
+                note=u'Submitting TFA code', errnote=u'unable to submit tfa', fatal=False)
+
+            if tfa_results is False:
+                return False
+
+            if re.search(r'(?i)<form[^>]* id="gaia_secondfactorform"', tfa_results) is not None:
+                self._downloader.report_warning(u'Two-factor code expired. Please try again, or use a one-use backup code instead.')
+                return False
+            if re.search(r'(?i)<form[^>]* id="gaia_loginform"', tfa_results) is not None:
+                self._downloader.report_warning(u'unable to log in - did the page structure change?')
+                return False
+            if re.search(r'smsauth-interstitial-reviewsettings', tfa_results) is not None:
+                self._downloader.report_warning(u'Your Google account has a security notice. Please log in on your web browser, resolve the notice, and try again.')
+                return False
+
         if re.search(r'(?i)<form[^>]* id="gaia_loginform"', login_results) is not None:
             self._downloader.report_warning(u'unable to log in: bad username or password')
             return False
@@ -225,7 +297,7 @@ class YoutubeIE(YoutubeBaseInfoExtractor, SubtitlesInfoExtractor):
         '272': {'ext': 'webm', 'height': 2160, 'format_note': 'DASH video', 'acodec': 'none', 'preference': -40},
 
         # Dash webm audio
-        '171': {'ext': 'webm', 'vcodec': 'none', 'format_note': 'DASH audio', 'abr': 48, 'preference': -50},
+        '171': {'ext': 'webm', 'vcodec': 'none', 'format_note': 'DASH audio', 'abr': 128, 'preference': -50},
         '172': {'ext': 'webm', 'vcodec': 'none', 'format_note': 'DASH audio', 'abr': 256, 'preference': -50},
 
         # RTMP (unnamed)
@@ -344,7 +416,11 @@ class YoutubeIE(YoutubeBaseInfoExtractor, SubtitlesInfoExtractor):
         """Indicate the download will use the RTMP protocol."""
         self.to_screen(u'RTMP download detected')
 
-    def _extract_signature_function(self, video_id, player_url, slen):
+    def _signature_cache_id(self, example_sig):
+        """ Return a string representation of a signature """
+        return u'.'.join(compat_str(len(part)) for part in example_sig.split('.'))
+
+    def _extract_signature_function(self, video_id, player_url, example_sig):
         id_m = re.match(
             r'.*-(?P<id>[a-zA-Z0-9_-]+)(?:/watch_as3|/html5player)?\.(?P<ext>[a-z]+)$',
             player_url)
@@ -354,7 +430,8 @@ class YoutubeIE(YoutubeBaseInfoExtractor, SubtitlesInfoExtractor):
         player_id = id_m.group('id')
 
         # Read from filesystem cache
-        func_id = '%s_%s_%d' % (player_type, player_id, slen)
+        func_id = '%s_%s_%s' % (
+            player_type, player_id, self._signature_cache_id(example_sig))
         assert os.path.basename(func_id) == func_id
         cache_dir = get_cachedir(self._downloader.params)
 
@@ -369,6 +446,13 @@ class YoutubeIE(YoutubeBaseInfoExtractor, SubtitlesInfoExtractor):
                 return lambda s: u''.join(s[i] for i in cache_spec)
             except IOError:
                 pass  # No cache available
+            except ValueError:
+                try:
+                    file_size = os.path.getsize(cache_fn)
+                except (OSError, IOError) as oe:
+                    file_size = str(oe)
+                self._downloader.report_warning(
+                    u'Cache %s failed (%s)' % (cache_fn, file_size))
 
         if player_type == 'js':
             code = self._download_webpage(
@@ -388,7 +472,7 @@ class YoutubeIE(YoutubeBaseInfoExtractor, SubtitlesInfoExtractor):
 
         if cache_enabled:
             try:
-                test_string = u''.join(map(compat_chr, range(slen)))
+                test_string = u''.join(map(compat_chr, range(len(example_sig))))
                 cache_res = res(test_string)
                 cache_spec = [ord(c) for c in cache_res]
                 try:
@@ -404,7 +488,7 @@ class YoutubeIE(YoutubeBaseInfoExtractor, SubtitlesInfoExtractor):
 
         return res
 
-    def _print_sig_code(self, func, slen):
+    def _print_sig_code(self, func, example_sig):
         def gen_sig_code(idxs):
             def _genslice(start, end, step):
                 starts = u'' if start == 0 else str(start)
@@ -433,11 +517,14 @@ class YoutubeIE(YoutubeBaseInfoExtractor, SubtitlesInfoExtractor):
             else:
                 yield _genslice(start, i, step)
 
-        test_string = u''.join(map(compat_chr, range(slen)))
+        test_string = u''.join(map(compat_chr, range(len(example_sig))))
         cache_res = func(test_string)
         cache_spec = [ord(c) for c in cache_res]
         expr_code = u' + '.join(gen_sig_code(cache_spec))
-        code = u'if len(s) == %d:\n    return %s\n' % (slen, expr_code)
+        signature_id_tuple = '(%s)' % (
+            ', '.join(compat_str(len(p)) for p in example_sig.split('.')))
+        code = (u'if tuple(len(p) for p in s.split(\'.\')) == %s:\n'
+                u'    return %s\n') % (signature_id_tuple, expr_code)
         self.to_screen(u'Extracted signature function:\n' + code)
 
     def _parse_sig_js(self, jscode):
@@ -465,20 +552,20 @@ class YoutubeIE(YoutubeBaseInfoExtractor, SubtitlesInfoExtractor):
         if player_url.startswith(u'//'):
             player_url = u'https:' + player_url
         try:
-            player_id = (player_url, len(s))
+            player_id = (player_url, self._signature_cache_id(s))
             if player_id not in self._player_cache:
                 func = self._extract_signature_function(
-                    video_id, player_url, len(s)
+                    video_id, player_url, s
                 )
                 self._player_cache[player_id] = func
             func = self._player_cache[player_id]
             if self._downloader.params.get('youtube_print_sig_code'):
-                self._print_sig_code(func, len(s))
+                self._print_sig_code(func, s)
             return func(s)
         except Exception as e:
             tb = traceback.format_exc()
             raise ExtractorError(
-                u'Automatic signature extraction failed: ' + tb, cause=e)
+                u'Signature extraction failed: ' + tb, cause=e)
 
     def _get_available_subtitles(self, video_id, webpage):
         try:
@@ -493,6 +580,8 @@ class YoutubeIE(YoutubeBaseInfoExtractor, SubtitlesInfoExtractor):
         sub_lang_list = {}
         for l in lang_list:
             lang = l[1]
+            if lang in sub_lang_list:
+                continue
             params = compat_urllib_parse.urlencode({
                 'lang': lang,
                 'v': video_id,
@@ -806,51 +895,54 @@ class YoutubeIE(YoutubeBaseInfoExtractor, SubtitlesInfoExtractor):
             url_map = {}
             for url_data_str in encoded_url_map.split(','):
                 url_data = compat_parse_qs(url_data_str)
-                if 'itag' in url_data and 'url' in url_data:
-                    url = url_data['url'][0]
-                    if 'sig' in url_data:
-                        url += '&signature=' + url_data['sig'][0]
-                    elif 's' in url_data:
-                        encrypted_sig = url_data['s'][0]
+                if 'itag' not in url_data or 'url' not in url_data:
+                    continue
+                format_id = url_data['itag'][0]
+                url = url_data['url'][0]
 
-                        if not age_gate:
-                            jsplayer_url_json = self._search_regex(
-                                r'"assets":.+?"js":\s*("[^"]+")',
-                                video_webpage, u'JS player URL')
-                            player_url = json.loads(jsplayer_url_json)
+                if 'sig' in url_data:
+                    url += '&signature=' + url_data['sig'][0]
+                elif 's' in url_data:
+                    encrypted_sig = url_data['s'][0]
+
+                    if not age_gate:
+                        jsplayer_url_json = self._search_regex(
+                            r'"assets":.+?"js":\s*("[^"]+")',
+                            video_webpage, u'JS player URL')
+                        player_url = json.loads(jsplayer_url_json)
+                    if player_url is None:
+                        player_url_json = self._search_regex(
+                            r'ytplayer\.config.*?"url"\s*:\s*("[^"]+")',
+                            video_webpage, u'age gate player URL')
+                        player_url = json.loads(player_url_json)
+
+                    if self._downloader.params.get('verbose'):
                         if player_url is None:
-                            player_url_json = self._search_regex(
-                                r'ytplayer\.config.*?"url"\s*:\s*("[^"]+")',
-                                video_webpage, u'age gate player URL')
-                            player_url = json.loads(player_url_json)
-
-                        if self._downloader.params.get('verbose'):
-                            if player_url is None:
-                                player_version = 'unknown'
-                                player_desc = 'unknown'
+                            player_version = 'unknown'
+                            player_desc = 'unknown'
+                        else:
+                            if player_url.endswith('swf'):
+                                player_version = self._search_regex(
+                                    r'-(.+?)(?:/watch_as3)?\.swf$', player_url,
+                                    u'flash player', fatal=False)
+                                player_desc = 'flash player %s' % player_version
                             else:
-                                if player_url.endswith('swf'):
-                                    player_version = self._search_regex(
-                                        r'-(.+?)(?:/watch_as3)?\.swf$', player_url,
-                                        u'flash player', fatal=False)
-                                    player_desc = 'flash player %s' % player_version
-                                else:
-                                    player_version = self._search_regex(
-                                        r'html5player-([^/]+?)(?:/html5player)?\.js',
-                                        player_url,
-                                        'html5 player', fatal=False)
-                                    player_desc = u'html5 player %s' % player_version
+                                player_version = self._search_regex(
+                                    r'html5player-([^/]+?)(?:/html5player)?\.js',
+                                    player_url,
+                                    'html5 player', fatal=False)
+                                player_desc = u'html5 player %s' % player_version
 
-                            parts_sizes = u'.'.join(compat_str(len(part)) for part in encrypted_sig.split('.'))
-                            self.to_screen(u'encrypted signature length %d (%s), itag %s, %s' %
-                                (len(encrypted_sig), parts_sizes, url_data['itag'][0], player_desc))
+                        parts_sizes = self._signature_cache_id(encrypted_sig)
+                        self.to_screen(u'{%s} signature length %s, %s' %
+                            (format_id, parts_sizes, player_desc))
 
-                        signature = self._decrypt_signature(
-                            encrypted_sig, video_id, player_url, age_gate)
-                        url += '&signature=' + signature
-                    if 'ratebypass' not in url:
-                        url += '&ratebypass=yes'
-                    url_map[url_data['itag'][0]] = url
+                    signature = self._decrypt_signature(
+                        encrypted_sig, video_id, player_url, age_gate)
+                    url += '&signature=' + signature
+                if 'ratebypass' not in url:
+                    url += '&ratebypass=yes'
+                url_map[format_id] = url
             formats = _map_to_format_list(url_map)
         elif video_info.get('hlsvp'):
             manifest_url = video_info['hlsvp'][0]
