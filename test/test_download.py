@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from test.helper import (
     assertGreaterEqual,
+    expect_warnings,
     get_params,
     gettestcases,
     expect_info_dict,
@@ -22,10 +23,12 @@ import json
 import socket
 
 import youtube_dl.YoutubeDL
-from youtube_dl.utils import (
+from youtube_dl.compat import (
     compat_http_client,
     compat_urllib_error,
     compat_HTTPError,
+)
+from youtube_dl.utils import (
     DownloadError,
     ExtractorError,
     format_bytes,
@@ -93,13 +96,14 @@ def generator(test_case):
             params.setdefault('extract_flat', True)
             params.setdefault('skip_download', True)
 
-        ydl = YoutubeDL(params)
+        ydl = YoutubeDL(params, auto_init=False)
         ydl.add_default_info_extractors()
         finished_hook_called = set()
         def _hook(status):
             if status['status'] == 'finished':
                 finished_hook_called.add(status['filename'])
         ydl.add_progress_hook(_hook)
+        expect_warnings(ydl, test_case.get('expected_warnings', []))
 
         def get_tc_filename(tc):
             return tc.get('file') or ydl.prepare_filename(tc.get('info_dict', {}))
@@ -139,7 +143,9 @@ def generator(test_case):
 
             if is_playlist:
                 self.assertEqual(res_dict['_type'], 'playlist')
+                self.assertTrue('entries' in res_dict)
                 expect_info_dict(self, test_case.get('info_dict', {}), res_dict)
+
             if 'playlist_mincount' in test_case:
                 assertGreaterEqual(
                     self,
@@ -181,14 +187,16 @@ def generator(test_case):
                         md5_for_file = _file_md5(tc_filename)
                         self.assertEqual(md5_for_file, tc['md5'])
                 info_json_fn = os.path.splitext(tc_filename)[0] + '.info.json'
-                self.assertTrue(os.path.exists(info_json_fn))
+                self.assertTrue(
+                    os.path.exists(info_json_fn),
+                    'Missing info file %s' % info_json_fn)
                 with io.open(info_json_fn, encoding='utf-8') as infof:
                     info_dict = json.load(infof)
 
                 expect_info_dict(self, tc.get('info_dict', {}), info_dict)
         finally:
             try_rm_tcs_files()
-            if is_playlist and res_dict is not None:
+            if is_playlist and res_dict is not None and res_dict.get('entries'):
                 # Remove all other files that may have been extracted if the
                 # extractor returns full results even with extract_flat
                 res_tcs = [{'info_dict': e} for e in res_dict['entries']]

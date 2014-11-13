@@ -14,8 +14,6 @@ from ..utils import (
 
 
 class HttpFD(FileDownloader):
-    _TEST_FILE_SIZE = 10241
-
     def real_download(self, filename, info_dict):
         url = info_dict['url']
         tmpfilename = self.temp_name(filename)
@@ -193,7 +191,8 @@ class HttpFD(FileDownloader):
             self.to_stderr(u"\n")
             self.report_error(u'Did not get any data blocks')
             return False
-        stream.close()
+        if tmpfilename != u'-':
+            stream.close()
         self.report_finish(data_len_str, (time.time() - start))
         if data_len is not None and byte_counter != data_len:
             raise ContentTooShortError(byte_counter, int(data_len))

@@ -14,6 +14,7 @@ from ..utils import (
     compat_str,
     compat_urllib_request,
     compat_parse_qs,
+    compat_urllib_parse_urlparse,
 
     determine_ext,
     ExtractorError,
@@ -23,7 +24,7 @@ from ..utils import (
 
 
 class BrightcoveIE(InfoExtractor):
-    _VALID_URL = r'https?://.*brightcove\.com/(services|viewer).*\?(?P<query>.*)'
+    _VALID_URL = r'https?://.*brightcove\.com/(services|viewer).*?\?(?P<query>.*)'
     _FEDERATED_URL_TEMPLATE = 'http://c.brightcove.com/services/viewer/htmlFederated?%s'
 
     _TESTS = [
@@ -86,6 +87,15 @@ class BrightcoveIE(InfoExtractor):
                 'uploader': 'Red Bull TV',
                 'description': 'UCI MTB World Cup 2014: Fort William, UK - Downhill Finals',
             },
+        },
+        {
+            # playlist test
+            # from http://support.brightcove.com/en/video-cloud/docs/playlist-support-single-video-players
+            'url': 'http://c.brightcove.com/services/viewer/htmlFederated?playerID=3550052898001&playerKey=AQ%7E%7E%2CAAABmA9XpXk%7E%2C-Kp7jNgisre1fG5OdqpAFUTcs0lP_ZoL',
+            'info_dict': {
+                'title': 'Sealife',
+            },
+            'playlist_mincount': 7,
         },
     ]
 
@@ -251,11 +261,19 @@ class BrightcoveIE(InfoExtractor):
             formats = []
             for rend in renditions:
                 url = rend['defaultURL']
+                if not url:
+                    continue
                 if rend['remote']:
-                    # This type of renditions are served through akamaihd.net,
-                    # but they don't use f4m manifests
-                    url = url.replace('control/', '') + '?&v=3.3.0&fp=13&r=FEEFJ&g=RTSJIMBMPFPB'
-                    ext = 'flv'
+                    url_comp = compat_urllib_parse_urlparse(url)
+                    if url_comp.path.endswith('.m3u8'):
+                        formats.extend(
+                            self._extract_m3u8_formats(url, info['id'], 'mp4'))
+                        continue
+                    elif 'akamaihd.net' in url_comp.netloc:
+                        # This type of renditions are served through
+                        # akamaihd.net, but they don't use f4m manifests
+                        url = url.replace('control/', '') + '?&v=3.3.0&fp=13&r=FEEFJ&g=RTSJIMBMPFPB'
+                        ext = 'flv'
                 else:
                     ext = determine_ext(url)
                 size = rend.get('size')

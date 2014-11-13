@@ -4,15 +4,16 @@ from __future__ import unicode_literals
 import re
 
 from .common import InfoExtractor
+from .generic import GenericIE
 from ..utils import (
     determine_ext,
     ExtractorError,
     qualities,
-    compat_urllib_parse_urlparse,
-    compat_urllib_parse,
     int_or_none,
     parse_duration,
     unified_strdate,
+    xpath_text,
+    parse_xml,
 )
 
 
@@ -50,13 +51,15 @@ class ARDMediathekIE(InfoExtractor):
         else:
             video_id = m.group('video_id')
 
-        urlp = compat_urllib_parse_urlparse(url)
-        url = urlp._replace(path=compat_urllib_parse.quote(urlp.path.encode('utf-8'))).geturl()
-
         webpage = self._download_webpage(url, video_id)
 
         if '>Der gewünschte Beitrag ist nicht mehr verfügbar.<' in webpage:
             raise ExtractorError('Video %s is no longer available' % video_id, expected=True)
+
+        if re.search(r'[\?&]rss($|[=&])', url):
+            doc = parse_xml(webpage)
+            if doc.tag == 'rss':
+                return GenericIE()._extract_rss(url, video_id, doc)
 
         title = self._html_search_regex(
             [r'<h1(?:\s+class="boxTopHeadline")?>(.*?)</h1>',
@@ -157,8 +160,9 @@ class ARDIE(InfoExtractor):
         player_url = mobj.group('mainurl') + '~playerXml.xml'
         doc = self._download_xml(player_url, display_id)
         video_node = doc.find('./video')
-        upload_date = unified_strdate(video_node.find('./broadcastDate').text)
-        thumbnail = video_node.find('.//teaserImage//variant/url').text
+        upload_date = unified_strdate(xpath_text(
+            video_node, './broadcastDate'))
+        thumbnail = xpath_text(video_node, './/teaserImage//variant/url')
 
         formats = []
         for a in video_node.findall('.//asset'):

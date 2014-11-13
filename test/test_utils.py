@@ -20,9 +20,9 @@ from youtube_dl.utils import (
     encodeFilename,
     find_xpath_attr,
     fix_xml_ampersands,
-    get_meta_content,
     orderedSet,
-    PagedList,
+    OnDemandPagedList,
+    InAdvancePagedList,
     parse_duration,
     read_batch_urls,
     sanitize_filename,
@@ -40,6 +40,11 @@ from youtube_dl.utils import (
     parse_iso8601,
     strip_jsonp,
     uppercase_escape,
+    limit_length,
+    escape_rfc3986,
+    escape_url,
+    js_to_json,
+    get_filesystem_encoding,
 )
 
 
@@ -134,6 +139,7 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(unified_strdate('Dec 14, 2012'), '20121214')
         self.assertEqual(unified_strdate('2012/10/11 01:56:38 +0000'), '20121011')
         self.assertEqual(unified_strdate('1968-12-10'), '19681210')
+        self.assertEqual(unified_strdate('28/01/2014 21:00:00 +0100'), '20140128')
 
     def test_find_xpath_attr(self):
         testxml = '''<root>
@@ -147,17 +153,6 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(find_xpath_attr(doc, './/fourohfour', 'n', 'v'), None)
         self.assertEqual(find_xpath_attr(doc, './/node', 'x', 'a'), doc[1])
         self.assertEqual(find_xpath_attr(doc, './/node', 'y', 'c'), doc[2])
-
-    def test_meta_parser(self):
-        testhtml = '''
-        <head>
-            <meta name="description" content="foo &amp; bar">
-            <meta content='Plato' name='author'/>
-        </head>
-        '''
-        get_meta = lambda name: get_meta_content(name, testhtml)
-        self.assertEqual(get_meta('description'), 'foo & bar')
-        self.assertEqual(get_meta('author'), 'Plato')
 
     def test_xpath_with_ns(self):
         testxml = '''<root xmlns:media="http://example.com/">
@@ -211,6 +206,9 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(parse_duration('00:01:01'), 61)
         self.assertEqual(parse_duration('x:y'), None)
         self.assertEqual(parse_duration('3h11m53s'), 11513)
+        self.assertEqual(parse_duration('3h 11m 53s'), 11513)
+        self.assertEqual(parse_duration('3 hours 11 minutes 53 seconds'), 11513)
+        self.assertEqual(parse_duration('3 hours 11 mins 53 secs'), 11513)
         self.assertEqual(parse_duration('62m45s'), 3765)
         self.assertEqual(parse_duration('6m59s'), 419)
         self.assertEqual(parse_duration('49s'), 49)
@@ -240,8 +238,12 @@ class TestUtil(unittest.TestCase):
                 for i in range(firstid, upto):
                     yield i
 
-            pl = PagedList(get_page, pagesize)
+            pl = OnDemandPagedList(get_page, pagesize)
             got = pl.getslice(*sliceargs)
+            self.assertEqual(got, expected)
+
+            iapl = InAdvancePagedList(get_page, size // pagesize + 1, pagesize)
+            got = iapl.getslice(*sliceargs)
             self.assertEqual(got, expected)
 
         testPL(5, 2, (), [0, 1, 2, 3, 4])
@@ -273,6 +275,7 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(parse_iso8601('2014-03-23T23:04:26+0100'), 1395612266)
         self.assertEqual(parse_iso8601('2014-03-23T22:04:26+0000'), 1395612266)
         self.assertEqual(parse_iso8601('2014-03-23T22:04:26Z'), 1395612266)
+        self.assertEqual(parse_iso8601('2014-03-23T22:04:26.1234Z'), 1395612266)
 
     def test_strip_jsonp(self):
         stripped = strip_jsonp('cb ([ {"id":"532cb",\n\n\n"x":\n3}\n]\n);')
@@ -282,6 +285,65 @@ class TestUtil(unittest.TestCase):
     def test_uppercase_escape(self):
         self.assertEqual(uppercase_escape('aä'), 'aä')
         self.assertEqual(uppercase_escape('\\U0001d550'), '𝕐')
+
+    def test_limit_length(self):
+        self.assertEqual(limit_length(None, 12), None)
+        self.assertEqual(limit_length('foo', 12), 'foo')
+        self.assertTrue(
+            limit_length('foo bar baz asd', 12).startswith('foo bar'))
+        self.assertTrue('...' in limit_length('foo bar baz asd', 12))
+
+    def test_escape_rfc3986(self):
+        reserved = "!*'();:@&=+$,/?#[]"
+        unreserved = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~'
+        self.assertEqual(escape_rfc3986(reserved), reserved)
+        self.assertEqual(escape_rfc3986(unreserved), unreserved)
+        self.assertEqual(escape_rfc3986('тест'), '%D1%82%D0%B5%D1%81%D1%82')
+        self.assertEqual(escape_rfc3986('%D1%82%D0%B5%D1%81%D1%82'), '%D1%82%D0%B5%D1%81%D1%82')
+        self.assertEqual(escape_rfc3986('foo bar'), 'foo%20bar')
+        self.assertEqual(escape_rfc3986('foo%20bar'), 'foo%20bar')
+
+    def test_escape_url(self):
+        self.assertEqual(
+            escape_url('http://wowza.imust.org/srv/vod/telemb/new/UPLOAD/UPLOAD/20224_IncendieHavré_FD.mp4'),
+            'http://wowza.imust.org/srv/vod/telemb/new/UPLOAD/UPLOAD/20224_IncendieHavre%CC%81_FD.mp4'
+        )
+        self.assertEqual(
+            escape_url('http://www.ardmediathek.de/tv/Sturm-der-Liebe/Folge-2036-Zu-Mann-und-Frau-erklärt/Das-Erste/Video?documentId=22673108&bcastId=5290'),
+            'http://www.ardmediathek.de/tv/Sturm-der-Liebe/Folge-2036-Zu-Mann-und-Frau-erkl%C3%A4rt/Das-Erste/Video?documentId=22673108&bcastId=5290'
+        )
+        self.assertEqual(
+            escape_url('http://тест.рф/фрагмент'),
+            'http://тест.рф/%D1%84%D1%80%D0%B0%D0%B3%D0%BC%D0%B5%D0%BD%D1%82'
+        )
+        self.assertEqual(
+            escape_url('http://тест.рф/абв?абв=абв#абв'),
+            'http://тест.рф/%D0%B0%D0%B1%D0%B2?%D0%B0%D0%B1%D0%B2=%D0%B0%D0%B1%D0%B2#%D0%B0%D0%B1%D0%B2'
+        )
+        self.assertEqual(escape_url('http://vimeo.com/56015672#at=0'), 'http://vimeo.com/56015672#at=0')
+
+    def test_js_to_json_realworld(self):
+        inp = '''{
+            'clip':{'provider':'pseudo'}
+        }'''
+        self.assertEqual(js_to_json(inp), '''{
+            "clip":{"provider":"pseudo"}
+        }''')
+        json.loads(js_to_json(inp))
+
+        inp = '''{
+            'playlist':[{'controls':{'all':null}}]
+        }'''
+        self.assertEqual(js_to_json(inp), '''{
+            "playlist":[{"controls":{"all":null}}]
+        }''')
+
+    def test_js_to_json_edgecases(self):
+        on = js_to_json("{abc_def:'1\\'\\\\2\\\\\\'3\"4'}")
+        self.assertEqual(json.loads(on), {"abc_def": "1'\\2\\'3\"4"})
+
+        on = js_to_json('{"abc": true}')
+        self.assertEqual(json.loads(on), {'abc': True})
 
 if __name__ == '__main__':
     unittest.main()

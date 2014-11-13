@@ -82,11 +82,7 @@ class DailymotionIE(DailymotionBaseInfoExtractor, SubtitlesInfoExtractor):
     ]
 
     def _real_extract(self, url):
-        # Extract id and simplified title from URL
-        mobj = re.match(self._VALID_URL, url)
-
-        video_id = mobj.group('id')
-
+        video_id = self._match_id(url)
         url = 'http://www.dailymotion.com/video/%s' % video_id
 
         # Retrieve video webpage to extract further information
@@ -98,7 +94,7 @@ class DailymotionIE(DailymotionBaseInfoExtractor, SubtitlesInfoExtractor):
 
         # It may just embed a vevo video:
         m_vevo = re.search(
-            r'<link rel="video_src" href="[^"]*?vevo.com[^"]*?videoId=(?P<id>[\w]*)',
+            r'<link rel="video_src" href="[^"]*?vevo.com[^"]*?video=(?P<id>[\w]*)',
             webpage)
         if m_vevo is not None:
             vevo_id = m_vevo.group('id')
@@ -147,18 +143,23 @@ class DailymotionIE(DailymotionBaseInfoExtractor, SubtitlesInfoExtractor):
             self._list_available_subtitles(video_id, webpage)
             return
 
-        view_count = self._search_regex(
-            r'video_views_count[^>]+>\s+([\d\.,]+)', webpage, 'view count', fatal=False)
-        if view_count is not None:
-            view_count = str_to_int(view_count)
+        view_count = str_to_int(self._search_regex(
+            r'video_views_count[^>]+>\s+([\d\.,]+)',
+            webpage, 'view count', fatal=False))
+
+        title = self._og_search_title(webpage, default=None)
+        if title is None:
+            title = self._html_search_regex(
+                r'(?s)<span\s+id="video_title"[^>]*>(.*?)</span>', webpage,
+                'title')
 
         return {
-            'id':       video_id,
+            'id': video_id,
             'formats': formats,
             'uploader': info['owner.screenname'],
-            'upload_date':  video_upload_date,
-            'title':    self._og_search_title(webpage),
-            'subtitles':    video_subtitles,
+            'upload_date': video_upload_date,
+            'title': title,
+            'subtitles': video_subtitles,
             'thumbnail': info['thumbnail_url'],
             'age_limit': age_limit,
             'view_count': view_count,
