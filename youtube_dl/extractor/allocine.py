@@ -5,10 +5,9 @@ import re
 import json
 
 from .common import InfoExtractor
+from ..compat import compat_str
 from ..utils import (
-    compat_str,
     qualities,
-    determine_ext,
 )
 
 
@@ -22,7 +21,7 @@ class AllocineIE(InfoExtractor):
             'id': '19546517',
             'ext': 'mp4',
             'title': 'Astérix - Le Domaine des Dieux Teaser VF',
-            'description': 'md5:4a754271d9c6f16c72629a8a993ee884',
+            'description': 'md5:abcd09ce503c6560512c14ebfdb720d2',
             'thumbnail': 're:http://.*\.jpg',
         },
     }, {
@@ -75,9 +74,7 @@ class AllocineIE(InfoExtractor):
                     'format_id': format_id,
                     'quality': quality(format_id),
                     'url': v,
-                    'ext': determine_ext(v),
                 })
-
         self._sort_formats(formats)
 
         return {
