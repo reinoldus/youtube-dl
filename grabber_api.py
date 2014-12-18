@@ -89,12 +89,12 @@ class GrabberApi(object):
                 inst.get_info_extractor("Vimeo")
                 self.parseResults = inst.extract_info(self.url, False)
             except thirdparty_grabber.youtube_dl.utils.DownloadError as e:
-                if "This video does not exist" in str(e):
+                if "This video does not exist" in e:
                     raise myexceptions.FetchingException("YouTube said: This video does not exist.", self.config.ERROR_404)
-                if "GEMA" in str(e):
+                if "GEMA" in e:
                     raise myexceptions.FetchingException("BANNED BY GEMA", self.config.ERROR_GEMA)
 
-                raise myexceptions.FetchingException(str(e.message), self.config.ERROR_CUSTOMMESSAGE)
+                raise myexceptions.FetchingException(e.message, self.config.ERROR_CUSTOMMESSAGE)
 
 if __name__ == "__main__":
     #test = GrabberApi("http://vimeo.com/103389185")
