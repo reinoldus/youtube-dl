@@ -1,4 +1,7 @@
 # coding=utf-8
+from youtube_dl.extractor import youtube
+from thirdparty_grabber.youtube_dl.utils import ExtractorError
+
 __author__ = 'gentoo'
 
 from youtube_dl import YoutubeDL
@@ -6,6 +9,7 @@ import thirdparty_grabber
 import traceback
 import re
 import myexceptions
+from config import Config
 
 
 class GrabberApi(object):
@@ -25,6 +29,7 @@ class GrabberApi(object):
         self.url = url
         self.parseResults = None
         self.formats = formats
+        self.config = Config()
 
     def getVideoUrl(self):
         self._parse()
@@ -75,16 +80,24 @@ class GrabberApi(object):
                     "outtmpl": "%(title)s-%(id)s.%(ext)s",
                     "skip_download": True,
                     "quiet": True,
-                    "format": self.formats,
+                    #"format": self.formats,
                     "verbose": True
                 })
 
                 #self.parseResults = inst.download([self.url])['entries'][0]
-                self.parseResults = inst.extract_info(self.url, False, "Youtube")
+                inst.get_info_extractor("Youtube")
+                inst.get_info_extractor("Vimeo")
+                self.parseResults = inst.extract_info(self.url, False)
             except thirdparty_grabber.youtube_dl.utils.DownloadError as e:
                 if "This video does not exist" in str(e):
-                    raise myexceptions.FetchingException("YouTube said: This video does not exist.", 511)
+                    raise myexceptions.FetchingException("YouTube said: This video does not exist.", self.config.ERROR_404)
                 if "GEMA" in str(e):
-                    raise myexceptions.FetchingException("BANNED BY GEMA", 514)
+                    raise myexceptions.FetchingException("BANNED BY GEMA", self.config.ERROR_GEMA)
 
-                raise myexceptions.FetchingException(str(e), 510)
+                raise myexceptions.FetchingException(str(e.message), self.config.ERROR_CUSTOMMESSAGE)
+
+if __name__ == "__main__":
+    #test = GrabberApi("http://vimeo.com/103389185")
+    test = GrabberApi("https://www.youtube.com/watch?v=OsgUJcirboo")
+    print test.getVideoTitle()
+    print test.getVideoUrl()
