@@ -5,6 +5,7 @@ from .academicearth import AcademicEarthCourseIE
 from .addanime import AddAnimeIE
 from .adultswim import AdultSwimIE
 from .aftonbladet import AftonbladetIE
+from .aljazeera import AlJazeeraIE
 from .anitube import AnitubeIE
 from .anysex import AnySexIE
 from .aol import AolIE
@@ -87,6 +88,7 @@ from .dotsub import DotsubIE
 from .dreisat import DreiSatIE
 from .drtuber import DrTuberIE
 from .drtv import DRTVIE
+from .dvtv import DVTVIE
 from .dump import DumpIE
 from .defense import DefenseGouvFrIE
 from .discovery import DiscoveryIE
@@ -341,6 +343,7 @@ from .savefrom import SaveFromIE
 from .sbs import SBSIE
 from .scivee import SciVeeIE
 from .screencast import ScreencastIE
+from .screencastomatic import ScreencastOMaticIE
 from .screenwavemedia import CinemassacreIE, ScreenwaveMediaIE, TeamFourIE
 from .servingsys import ServingSysIE
 from .sexu import SexuIE
