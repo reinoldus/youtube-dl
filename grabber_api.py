@@ -99,5 +99,5 @@ class GrabberApi(object):
 if __name__ == "__main__":
     #test = GrabberApi("http://vimeo.com/103389185")
     test = GrabberApi("https://www.youtube.com/watch?v=OsgUJcirboo")
-    print test.getVideoTitle()
-    print test.getVideoUrl()
+    print(test.getVideoTitle())
+    print(test.getVideoUrl())
