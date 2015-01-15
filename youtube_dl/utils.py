@@ -396,7 +396,6 @@ def formatSeconds(secs):
         return '%d' % secs
 
 
-<<<<<<< HEAD
 def make_HTTPS_handler(opts_no_check_certificate, **kwargs):
     """
     I HAVE ADDED MY CUSTOM PATCH HERE TO SPECIFY THE SOURCE ADDRESS
@@ -405,10 +404,7 @@ def make_HTTPS_handler(opts_no_check_certificate, **kwargs):
     :param kwargs:
     :return:
     """
-=======
-def make_HTTPS_handler(params, **kwargs):
     opts_no_check_certificate = params.get('nocheckcertificate', False)
->>>>>>> a45c0a5d67b87e9ea16e2812f44753c9cb946636
     if hasattr(ssl, 'create_default_context'):  # Python >= 3.4 or 2.7.9
         context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
         if opts_no_check_certificate:
