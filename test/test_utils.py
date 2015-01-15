@@ -16,6 +16,7 @@ import json
 import xml.etree.ElementTree
 
 from youtube_dl.utils import (
+    age_restricted,
     args_to_str,
     clean_html,
     DateRange,
@@ -77,6 +78,10 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(sanitize_filename(aumlaut), aumlaut)
         tests = '\u043a\u0438\u0440\u0438\u043b\u043b\u0438\u0446\u0430'
         self.assertEqual(sanitize_filename(tests), tests)
+
+        self.assertEqual(
+            sanitize_filename('New World record at 0:12:34'),
+            'New World record at 0_12_34')
 
         forbidden = '"\0\\/'
         for fc in forbidden:
@@ -143,6 +148,7 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(unified_strdate('8/7/2009'), '20090708')
         self.assertEqual(unified_strdate('Dec 14, 2012'), '20121214')
         self.assertEqual(unified_strdate('2012/10/11 01:56:38 +0000'), '20121011')
+        self.assertEqual(unified_strdate('1968 12 10'), '19681210')
         self.assertEqual(unified_strdate('1968-12-10'), '19681210')
         self.assertEqual(unified_strdate('28/01/2014 21:00:00 +0100'), '20140128')
         self.assertEqual(
@@ -207,6 +213,8 @@ class TestUtil(unittest.TestCase):
 
     def test_parse_duration(self):
         self.assertEqual(parse_duration(None), None)
+        self.assertEqual(parse_duration(False), None)
+        self.assertEqual(parse_duration('invalid'), None)
         self.assertEqual(parse_duration('1'), 1)
         self.assertEqual(parse_duration('1337:12'), 80232)
         self.assertEqual(parse_duration('9:12:43'), 33163)
@@ -401,6 +409,13 @@ built on May 15 2014 22:09:06 with gcc 4.8.2 (GCC)'''), 'N-63176-g1fb4685')
 Trying to open render node...
 Success at /dev/dri/renderD128.
 ffmpeg version 2.4.4 Copyright (c) 2000-2014 the FFmpeg ...'''), '2.4.4')
+
+    def test_age_restricted(self):
+        self.assertFalse(age_restricted(None, 10))  # unrestricted content
+        self.assertFalse(age_restricted(1, None))  # unrestricted policy
+        self.assertFalse(age_restricted(8, 10))
+        self.assertTrue(age_restricted(18, 14))
+        self.assertFalse(age_restricted(18, 18))
 
 if __name__ == '__main__':
     unittest.main()

@@ -10,6 +10,7 @@ import ctypes
 import datetime
 import email.utils
 import errno
+import functools
 import gzip
 import itertools
 import io
@@ -34,7 +35,9 @@ from .compat import (
     compat_chr,
     compat_getenv,
     compat_html_entities,
+    compat_http_client,
     compat_parse_qs,
+    compat_socket_create_connection,
     compat_str,
     compat_urllib_error,
     compat_urllib_parse,
@@ -205,6 +208,10 @@ def get_element_by_attribute(attribute, value, html):
 
 def clean_html(html):
     """Clean an HTML snippet into a readable string"""
+
+    if html is None:  # Convenience for sanitizing descriptions etc.
+        return html
+
     # Newline vs <br />
     html = html.replace('\n', ' ')
     html = re.sub(r'\s*<\s*br\s*/?\s*>\s*', '\n', html)
@@ -280,6 +287,8 @@ def sanitize_filename(s, restricted=False, is_id=False):
             return '_'
         return char
 
+    # Handle timestamps
+    s = re.sub(r'[0-9]+(?::[0-9]+)+', lambda m: m.group(0).replace(':', '_'), s)
     result = ''.join(map(replace_insane, s))
     if not is_id:
         while '__' in result:
@@ -387,6 +396,7 @@ def formatSeconds(secs):
         return '%d' % secs
 
 
+<<<<<<< HEAD
 def make_HTTPS_handler(opts_no_check_certificate, **kwargs):
     """
     I HAVE ADDED MY CUSTOM PATCH HERE TO SPECIFY THE SOURCE ADDRESS
@@ -395,12 +405,17 @@ def make_HTTPS_handler(opts_no_check_certificate, **kwargs):
     :param kwargs:
     :return:
     """
+=======
+def make_HTTPS_handler(params, **kwargs):
+    opts_no_check_certificate = params.get('nocheckcertificate', False)
+>>>>>>> a45c0a5d67b87e9ea16e2812f44753c9cb946636
     if hasattr(ssl, 'create_default_context'):  # Python >= 3.4 or 2.7.9
-        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
         if opts_no_check_certificate:
+            context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
         try:
-            return compat_urllib_request.HTTPSHandler(context=context, **kwargs)
+            return YoutubeDLHTTPSHandler(params, context=context, **kwargs)
         except TypeError:
             # Python 2.7.8
             # (create_default_context present but HTTPSHandler has no context=)
@@ -426,17 +441,14 @@ def make_HTTPS_handler(opts_no_check_certificate, **kwargs):
                 except ssl.SSLError:
                     self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file, ssl_version=ssl.PROTOCOL_SSLv23)
 
-        class HTTPSHandlerV3(compat_urllib_request.HTTPSHandler):
-            def https_open(self, req):
-                return self.do_open(HTTPSConnectionV3, req)
-        return HTTPSHandlerV3(**kwargs)
+        return YoutubeDLHTTPSHandler(params, https_conn_class=HTTPSConnectionV3, **kwargs)
     else:  # Python < 3.4
         context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
         context.verify_mode = (ssl.CERT_NONE
                                if opts_no_check_certificate
                                else ssl.CERT_REQUIRED)
         context.set_default_verify_paths()
-        return compat_urllib_request.HTTPSHandler(context=context, **kwargs)
+        return YoutubeDLHTTPSHandler(params, context=context, **kwargs)
 
 
 class ExtractorError(Exception):
@@ -472,6 +484,13 @@ class ExtractorError(Exception):
         if self.traceback is None:
             return None
         return ''.join(traceback.format_tb(self.traceback))
+
+
+class UnsupportedError(ExtractorError):
+    def __init__(self, url):
+        super(UnsupportedError, self).__init__(
+            'Unsupported URL: %s' % url, expected=True)
+        self.url = url
 
 
 class RegexNotFoundError(ExtractorError):
@@ -543,6 +562,26 @@ class ContentTooShortError(Exception):
         self.expected = expected
 
 
+def _create_http_connection(ydl_handler, http_class, is_https, *args, **kwargs):
+    hc = http_class(*args, **kwargs)
+    source_address = ydl_handler._params.get('source_address')
+    if source_address is not None:
+        sa = (source_address, 0)
+        if hasattr(hc, 'source_address'):  # Python 2.7+
+            hc.source_address = sa
+        else:  # Python 2.6
+            def _hc_connect(self, *args, **kwargs):
+                sock = compat_socket_create_connection(
+                    (self.host, self.port), self.timeout, sa)
+                if is_https:
+                    self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file)
+                else:
+                    self.sock = sock
+            hc.connect = functools.partial(_hc_connect, hc)
+
+    return hc
+
+
 class YoutubeDLHandler(compat_urllib_request.HTTPHandler):
     """Handler for HTTP requests and responses.
 
@@ -560,6 +599,15 @@ class YoutubeDLHandler(compat_urllib_request.HTTPHandler):
     Andrew Rowls, the author of that code, agreed to release it to the
     public domain.
     """
+
+    def __init__(self, params, *args, **kwargs):
+        compat_urllib_request.HTTPHandler.__init__(self, *args, **kwargs)
+        self._params = params
+
+    def http_open(self, req):
+        return self.do_open(functools.partial(
+            _create_http_connection, self, compat_http_client.HTTPConnection, False),
+            req)
 
     @staticmethod
     def deflate(data):
@@ -630,6 +678,18 @@ class YoutubeDLHandler(compat_urllib_request.HTTPHandler):
     https_response = http_response
 
 
+class YoutubeDLHTTPSHandler(compat_urllib_request.HTTPSHandler):
+    def __init__(self, params, https_conn_class=None, *args, **kwargs):
+        compat_urllib_request.HTTPSHandler.__init__(self, *args, **kwargs)
+        self._https_conn_class = https_conn_class or compat_http_client.HTTPSConnection
+        self._params = params
+
+    def https_open(self, req):
+        return self.do_open(functools.partial(
+            _create_http_connection, self, self._https_conn_class, True),
+            req)
+
+
 def parse_iso8601(date_str, delimiter='T'):
     """ Return a UNIX timestamp from the given date """
 
@@ -676,11 +736,9 @@ def unified_strdate(date_str, day_first=True):
         '%b %dst %Y %I:%M%p',
         '%b %dnd %Y %I:%M%p',
         '%b %dth %Y %I:%M%p',
+        '%Y %m %d',
         '%Y-%m-%d',
         '%Y/%m/%d',
-        '%d.%m.%Y',
-        '%d/%m/%Y',
-        '%d/%m/%y',
         '%Y/%m/%d %H:%M:%S',
         '%Y-%m-%d %H:%M:%S',
         '%Y-%m-%d %H:%M:%S.%f',
@@ -695,10 +753,16 @@ def unified_strdate(date_str, day_first=True):
     ]
     if day_first:
         format_expressions.extend([
+            '%d.%m.%Y',
+            '%d/%m/%Y',
+            '%d/%m/%y',
             '%d/%m/%Y %H:%M:%S',
         ])
     else:
         format_expressions.extend([
+            '%m.%d.%Y',
+            '%m/%d/%Y',
+            '%m/%d/%y',
             '%m/%d/%Y %H:%M:%S',
         ])
     for expression in format_expressions:
@@ -1221,7 +1285,7 @@ def float_or_none(v, scale=1, invscale=1, default=None):
 
 
 def parse_duration(s):
-    if s is None:
+    if not isinstance(s, basestring if sys.version_info < (3, 0) else compat_str):
         return None
 
     s = s.strip()
@@ -1553,3 +1617,23 @@ def ytdl_is_updateable():
 def args_to_str(args):
     # Get a short string representation for a subprocess command
     return ' '.join(shlex_quote(a) for a in args)
+
+
+def urlhandle_detect_ext(url_handle):
+    try:
+        url_handle.headers
+        getheader = lambda h: url_handle.headers[h]
+    except AttributeError:  # Python < 3
+        getheader = url_handle.info().getheader
+
+    return getheader('Content-Type').split("/")[1]
+
+
+def age_restricted(content_limit, age_limit):
+    """ Returns True iff the content should be blocked """
+
+    if age_limit is None:  # No limit set
+        return False
+    if content_limit is None:
+        return False  # Content available for everyone
+    return age_limit < content_limit

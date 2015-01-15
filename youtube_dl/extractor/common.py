@@ -21,6 +21,7 @@ from ..compat import (
     compat_str,
 )
 from ..utils import (
+    age_restricted,
     clean_html,
     compiled_regex_type,
     ExtractorError,
@@ -40,7 +41,7 @@ class InfoExtractor(object):
     information about the video (or videos) the URL refers to. This
     information includes the real video URL, the video title, author and
     others. The information is stored in a dictionary which is then
-    passed to the FileDownloader. The FileDownloader processes this
+    passed to the YoutubeDL. The YoutubeDL processes this
     information possibly downloading the video to the file system, among
     other possible outcomes.
 
@@ -92,6 +93,8 @@ class InfoExtractor(object):
                                  by this field, regardless of all other values.
                                  -1 for default (order by other properties),
                                  -2 or smaller for less than default.
+                                 < -1000 to hide the format (if there is
+                                    another one which is strictly better)
                     * language_preference  Is this in the correct requested
                                  language?
                                  10 if it's what the URL is about,
@@ -111,6 +114,9 @@ class InfoExtractor(object):
                                  to add to the request.
                     * http_post_data  Additional data to send with a POST
                                  request.
+                    * stretched_ratio  If given and not 1, indicates that the
+                                       video's pixels are not square.
+                                       width : height ratio as float.
     url:            Final video URL.
     ext:            Video filename extension.
     format:         The video format, defaults to ext (used for --get-format)
@@ -144,6 +150,17 @@ class InfoExtractor(object):
     like_count:     Number of positive ratings of the video
     dislike_count:  Number of negative ratings of the video
     comment_count:  Number of comments on the video
+    comments:       A list of comments, each with one or more of the following
+                    properties (all but one of text or html optional):
+                        * "author" - human-readable name of the comment author
+                        * "author_id" - user ID of the comment author
+                        * "id" - Comment ID
+                        * "html" - Comment as HTML
+                        * "text" - Plain text of the comment
+                        * "timestamp" - UNIX timestamp of comment
+                        * "parent" - ID of the comment this one is replying to.
+                                     Set to "root" to indicate that this is a
+                                     comment to the original video.
     age_limit:      Age restriction for the video, as an integer (years)
     webpage_url:    The url to the video webpage, if given to youtube-dl it
                     should allow to get the same result again. (It will be set
@@ -362,9 +379,19 @@ class InfoExtractor(object):
 
         return content
 
-    def _download_webpage(self, url_or_request, video_id, note=None, errnote=None, fatal=True):
+    def _download_webpage(self, url_or_request, video_id, note=None, errnote=None, fatal=True, tries=1, timeout=5):
         """ Returns the data of the page as a string """
-        res = self._download_webpage_handle(url_or_request, video_id, note, errnote, fatal)
+        success = False
+        try_count = 0
+        while success is False:
+            try:
+                res = self._download_webpage_handle(url_or_request, video_id, note, errnote, fatal)
+                success = True
+            except compat_http_client.IncompleteRead as e:
+                try_count += 1
+                if try_count >= tries:
+                    raise e
+                self._sleep(timeout, video_id)
         if res is False:
             return res
         else:
@@ -589,9 +616,9 @@ class InfoExtractor(object):
         if display_name is None:
             display_name = name
         return self._html_search_regex(
-            r'''(?ix)<meta
+            r'''(?isx)<meta
                     (?=[^>]+(?:itemprop|name|property)=(["\']?)%s\1)
-                    [^>]+content=(["\'])(?P<content>.*?)\1''' % re.escape(name),
+                    [^>]+?content=(["\'])(?P<content>.*?)\2''' % re.escape(name),
             html, display_name, fatal=fatal, group='content', **kwargs)
 
     def _dc_search_uploader(self, html):
@@ -715,8 +742,14 @@ class InfoExtractor(object):
             'Unable to download f4m manifest')
 
         formats = []
+        manifest_version = '1.0'
         media_nodes = manifest.findall('{http://ns.adobe.com/f4m/1.0}media')
+        if not media_nodes:
+            manifest_version = '2.0'
+            media_nodes = manifest.findall('{http://ns.adobe.com/f4m/2.0}media')
         for i, media_el in enumerate(media_nodes):
+            if manifest_version == '2.0':
+                manifest_url = '/'.join(manifest_url.split('/')[:-1]) + '/' + media_el.attrib.get('href')
             tbr = int_or_none(media_el.attrib.get('bitrate'))
             format_id = 'f4m-%d' % (i if tbr is None else tbr)
             formats.append({
@@ -874,6 +907,35 @@ class InfoExtractor(object):
             0, name, value, None, None, domain, None,
             None, '/', True, False, expire_time, '', None, None, None)
         self._downloader.cookiejar.set_cookie(cookie)
+
+    def get_testcases(self, include_onlymatching=False):
+        t = getattr(self, '_TEST', None)
+        if t:
+            assert not hasattr(self, '_TESTS'), \
+                '%s has _TEST and _TESTS' % type(self).__name__
+            tests = [t]
+        else:
+            tests = getattr(self, '_TESTS', [])
+        for t in tests:
+            if not include_onlymatching and t.get('only_matching', False):
+                continue
+            t['name'] = type(self).__name__[:-len('IE')]
+            yield t
+
+    def is_suitable(self, age_limit):
+        """ Test whether the extractor is generally suitable for the given
+        age limit (i.e. pornographic sites are not, all others usually are) """
+
+        any_restricted = False
+        for tc in self.get_testcases(include_onlymatching=False):
+            if 'playlist' in tc:
+                tc = tc['playlist'][0]
+            is_restricted = age_restricted(
+                tc.get('info_dict', {}).get('age_limit'), age_limit)
+            if not is_restricted:
+                return True
+            any_restricted = any_restricted or is_restricted
+        return not any_restricted
 
 
 class SearchInfoExtractor(InfoExtractor):

@@ -60,10 +60,6 @@ which means you can modify it, redistribute it or use it however you like.
                                      they would handle
     --extractor-descriptions         Output descriptions of all supported
                                      extractors
-    --proxy URL                      Use the specified HTTP/HTTPS proxy. Pass in
-                                     an empty string (--proxy "") for direct
-                                     connection
-    --socket-timeout None            Time to wait before giving up, in seconds
     --default-search PREFIX          Use this prefix for unqualified URLs. For
                                      example "gvsearch2:" downloads two videos
                                      from google videos for  youtube-dl "large
@@ -81,6 +77,18 @@ which means you can modify it, redistribute it or use it however you like.
                                      on Windows)
     --flat-playlist                  Do not extract the videos of a playlist,
                                      only list them.
+
+## Network Options:
+    --proxy URL                      Use the specified HTTP/HTTPS proxy. Pass in
+                                     an empty string (--proxy "") for direct
+                                     connection
+    --socket-timeout SECONDS         Time to wait before giving up, in seconds
+    --source-address IP              Client-side IP address to bind to
+                                     (experimental)
+    -4, --force-ipv4                 Make all connections via IPv4
+                                     (experimental)
+    -6, --force-ipv6                 Make all connections via IPv6
+                                     (experimental)
 
 ## Video Selection:
     --playlist-start NUMBER          playlist video to start at (default is 1)
@@ -219,6 +227,8 @@ which means you can modify it, redistribute it or use it however you like.
                                      for each command-line argument. If the URL
                                      refers to a playlist, dump the whole
                                      playlist information in a single line.
+    --print-json                     Be quiet and print the video information as
+                                     JSON (video is still being downloaded).
     --newline                        output progress bar as new lines
     --no-progress                    do not print progress bar
     --console-title                  display progress in console titlebar
@@ -229,6 +239,10 @@ which means you can modify it, redistribute it or use it however you like.
                                      files in the current directory to debug
                                      problems
     --print-traffic                  Display sent and read HTTP traffic
+    -C, --call-home                  Contact the youtube-dl server for
+                                     debugging.
+    --no-call-home                   Do NOT contact the youtube-dl server for
+                                     debugging.
 
 ## Workarounds:
     --encoding ENCODING              Force the specified encoding (experimental)
@@ -248,14 +262,15 @@ which means you can modify it, redistribute it or use it however you like.
 
 ## Video Format Options:
     -f, --format FORMAT              video format code, specify the order of
-                                     preference using slashes: -f 22/17/18 .  -f
-                                     mp4 , -f m4a and  -f flv  are also
-                                     supported. You can also use the special
-                                     names "best", "bestvideo", "bestaudio",
-                                     "worst", "worstvideo" and "worstaudio". By
-                                     default, youtube-dl will pick the best
-                                     quality. Use commas to download multiple
-                                     audio formats, such as -f
+                                     preference using slashes, as in -f 22/17/18
+                                     .  Instead of format codes, you can select
+                                     by extension for the extensions aac, m4a,
+                                     mp3, mp4, ogg, wav, webm. You can also use
+                                     the special names "best", "bestvideo",
+                                     "bestaudio", "worst".  By default, youtube-
+                                     dl will pick the best quality. Use commas
+                                     to download multiple audio formats, such as
+                                     -f
                                      136/137/mp4/bestvideo,140/m4a/bestaudio.
                                      You can merge the video and audio of two
                                      formats into a single file using -f <video-
@@ -269,6 +284,10 @@ which means you can modify it, redistribute it or use it however you like.
     -F, --list-formats               list all available formats
     --youtube-skip-dash-manifest     Do not download the DASH manifest on
                                      YouTube videos
+    --merge-output-format FORMAT     If a merge is required (e.g.
+                                     bestvideo+bestaudio), output to given
+                                     container format. One of mkv, mp4, ogg,
+                                     webm, flv.Ignored if no merge is required
 
 ## Subtitle Options:
     --write-sub                      write subtitle file
@@ -315,6 +334,11 @@ which means you can modify it, redistribute it or use it however you like.
     --add-metadata                   write metadata to the video file
     --xattrs                         write metadata to the video file's xattrs
                                      (using dublin core and xdg standards)
+    --fixup POLICY                   (experimental) Automatically correct known
+                                     faults of the file. One of never (do
+                                     nothing), warn (only emit a warning),
+                                     detect_or_warn(check whether we can do
+                                     anything about it, warn otherwise
     --prefer-avconv                  Prefer avconv over ffmpeg for running the
                                      postprocessors (default)
     --prefer-ffmpeg                  Prefer ffmpeg over avconv for running the
@@ -326,7 +350,7 @@ which means you can modify it, redistribute it or use it however you like.
 
 # CONFIGURATION
 
-You can configure youtube-dl by placing default arguments (such as `--extract-audio --no-mtime` to always extract the audio and not copy the mtime) into `/etc/youtube-dl.conf` and/or `~/.config/youtube-dl/config`. On Windows, the configuration file locations are `%APPDATA%\youtube-dl\config.txt` and `C:\Users\<Yourname>\youtube-dl.conf`.
+You can configure youtube-dl by placing default arguments (such as `--extract-audio --no-mtime` to always extract the audio and not copy the mtime) into `/etc/youtube-dl.conf` and/or `~/.config/youtube-dl/config`. On Windows, the configuration file locations are `%APPDATA%\youtube-dl\config.txt` and `C:\Users\<user name>\youtube-dl.conf`.
 
 # OUTPUT TEMPLATE
 
@@ -420,9 +444,15 @@ Apparently YouTube requires you to pass a CAPTCHA test if you download too much.
 
 Once the video is fully downloaded, use any video player, such as [vlc](http://www.videolan.org) or [mplayer](http://www.mplayerhq.hu/).
 
-### The links provided by youtube-dl -g are not working anymore
+### I extracted a video URL with -g, but it does not play on another machine / in my webbrowser.
 
-The URLs youtube-dl outputs require the downloader to have the correct cookies. Use the `--cookies` option to write the required cookies into a file, and advise your downloader to read cookies from that file. Some sites also require a common user agent to be used, use `--dump-user-agent` to see the one in use by youtube-dl.
+It depends a lot on the service. In many cases, requests for the video (to download/play it) must come from the same IP address and with the same cookies.  Use the `--cookies` option to write the required cookies into a file, and advise your downloader to read cookies from that file. Some sites also require a common user agent to be used, use `--dump-user-agent` to see the one in use by youtube-dl.
+
+It may be beneficial to use IPv6; in some cases, the restrictions are only applied to IPv4. Some services (sometimes only for a subset of videos) do not restrict the video URL by IP address, cookie, or user-agent, but these are the exception rather than the rule.
+
+Please bear in mind that some URL protocols are **not** supported by browsers out of the box, including RTMP. If you are using -g, your own downloader must support these as well.
+
+If you want to play the video on a machine that is not running youtube-dl, you can relay the video content from the machine that runs youtube-dl. You can use `-o -` to let youtube-dl stream a video to stdout, or simply allow the player to download the files written by youtube-dl in turn.
 
 ### ERROR: no fmt_url_map or conn information found in video info
 
@@ -448,6 +478,22 @@ Since June 2012 (#342) youtube-dl is packed as an executable zipfile, simply unz
 ### The exe throws a *Runtime error from Visual C++*
 
 To run the exe you need to install first the [Microsoft Visual C++ 2008 Redistributable Package](http://www.microsoft.com/en-us/download/details.aspx?id=29).
+
+### On Windows, how should I set up ffmpeg and youtube-dl? Where should I put the exe files?
+
+If you put youtube-dl and ffmpeg in the same directory that you're running the command from, it will work, but that's rather cumbersome.
+
+To make a different directory work - either for ffmpeg, or for youtube-dl, or for both - simply create the directory (say, `C:\bin`, or `C:\Users\<User name>\bin`), put all the executables directly in there, and then [set your PATH environment variable](https://www.java.com/en/download/help/path.xml) to include that directory.
+
+From then on, after restarting your shell, you will be able to access both youtube-dl and ffmpeg (and youtube-dl will be able to find ffmpeg) by simply typing `youtube-dl` or `ffmpeg`, no matter what directory you're in.
+
+### How can I detect whether a given URL is supported by youtube-dl?
+
+For one, have a look at the [list of supported sites](docs/supportedsites). Note that it can sometimes happen that the site changes its URL scheme (say, from http://example.com/v/1234567 to http://example.com/v/1234567 ) and youtube-dl reports an URL of a service in that list as unsupported. In that case, simply report a bug.
+
+It is *not* possible to detect whether a URL is supported or not. That's because youtube-dl contains a generic extractor which matches **all** URLs. You may be tempted to disable, exclude, or remove the generic extractor, but the generic extractor not only allows users to extract videos from lots of websites that embed a video from another service, but may also be used to extract video from a service that it's hosting itself. Therefore, we neither recommend nor support disabling, excluding, or removing the generic extractor.
+
+If you want to find out whether a given URL is supported, simply call youtube-dl with it. If you get no videos back, chances are the URL is either not referring to a video or unsupported. You can find out which by examining the output (if you run youtube-dl on the console) or catching an `UnsupportedError` exception if you run it from a Python program.
 
 # DEVELOPER INSTRUCTIONS
 
@@ -589,7 +635,9 @@ with youtube_dl.YoutubeDL(ydl_opts) as ydl:
 
 Bugs and suggestions should be reported at: <https://github.com/rg3/youtube-dl/issues> . Unless you were prompted so or there is another pertinent reason (e.g. GitHub fails to accept the bug report), please do not send bug reports via personal email. For discussions, join us in the irc channel #youtube-dl on freenode.
 
-Please include the full output of the command when run with `--verbose`. The output (including the first lines) contain important debugging information. Issues without the full output are often not reproducible and therefore do not get solved in short order, if ever.
+**Please include the full output of youtube-dl when run with `-v`**.
+
+The output (including the first lines) contain important debugging information. Issues without the full output are often not reproducible and therefore do not get solved in short order, if ever.
 
 Please re-read your issue once again to avoid a couple of common mistakes (you can and should use this as a checklist):
 

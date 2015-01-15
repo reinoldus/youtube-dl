@@ -51,6 +51,10 @@ class FFmpegPostProcessor(PostProcessor):
         return dict((p, get_exe_version(p, args=['-version'])) for p in programs)
 
     @property
+    def available(self):
+        return self._executable is not None
+
+    @property
     def _executable(self):
         if self._downloader.params.get('prefer_ffmpeg', False):
             prefs = ('ffmpeg', 'avconv')
@@ -78,11 +82,15 @@ class FFmpegPostProcessor(PostProcessor):
     def run_ffmpeg_multiple_files(self, input_paths, out_path, opts):
         self.check_version()
 
+        oldest_mtime = min(
+            os.stat(encodeFilename(path)).st_mtime for path in input_paths)
+
         files_cmd = []
         for path in input_paths:
-            files_cmd.extend(['-i', encodeFilename(path, True)])
-        cmd = ([self._executable, '-y'] + files_cmd
-               + [encodeArgument(o) for o in opts] +
+            files_cmd.extend([encodeArgument('-i'), encodeFilename(path, True)])
+        cmd = ([encodeFilename(self._executable, True), encodeArgument('-y')] +
+               files_cmd +
+               [encodeArgument(o) for o in opts] +
                [encodeFilename(self._ffmpeg_filename_argument(out_path), True)])
 
         if self._downloader.params.get('verbose', False):
@@ -93,6 +101,7 @@ class FFmpegPostProcessor(PostProcessor):
             stderr = stderr.decode('utf-8', 'replace')
             msg = stderr.strip().split('\n')[-1]
             raise FFmpegPostProcessorError(msg)
+        os.utime(encodeFilename(out_path), (oldest_mtime, oldest_mtime))
         if self._deletetempfiles:
             for ipath in input_paths:
                 os.remove(ipath)
@@ -122,8 +131,8 @@ class FFmpegExtractAudioPP(FFmpegPostProcessor):
             raise PostProcessingError('ffprobe or avprobe not found. Please install one.')
         try:
             cmd = [
-                self._probe_executable,
-                '-show_streams',
+                encodeFilename(self._probe_executable, True),
+                encodeArgument('-show_streams'),
                 encodeFilename(self._ffmpeg_filename_argument(path), True)]
             handle = subprocess.Popen(cmd, stderr=compat_subprocess_get_DEVNULL(), stdout=subprocess.PIPE)
             output = handle.communicate()[0]
@@ -520,7 +529,7 @@ class FFmpegMetadataPP(FFmpegPostProcessor):
 class FFmpegMergerPP(FFmpegPostProcessor):
     def run(self, info):
         filename = info['filepath']
-        args = ['-c', 'copy', '-map', '0:v:0', '-map', '1:a:0', '-shortest']
+        args = ['-c', 'copy', '-map', '0:v:0', '-map', '1:a:0']
         self._downloader.to_screen('[ffmpeg] Merging formats into "%s"' % filename)
         self.run_ffmpeg_multiple_files(info['__files_to_merge'], filename, args)
         return True, info
@@ -533,6 +542,25 @@ class FFmpegAudioFixPP(FFmpegPostProcessor):
 
         options = ['-vn', '-acodec', 'copy']
         self._downloader.to_screen('[ffmpeg] Fixing audio file "%s"' % filename)
+        self.run_ffmpeg(filename, temp_filename, options)
+
+        os.remove(encodeFilename(filename))
+        os.rename(encodeFilename(temp_filename), encodeFilename(filename))
+
+        return True, info
+
+
+class FFmpegFixupStretchedPP(FFmpegPostProcessor):
+    def run(self, info):
+        stretched_ratio = info.get('stretched_ratio')
+        if stretched_ratio is None or stretched_ratio == 1:
+            return
+
+        filename = info['filepath']
+        temp_filename = prepend_extension(filename, 'temp')
+
+        options = ['-c', 'copy', '-aspect', '%f' % stretched_ratio]
+        self._downloader.to_screen('[ffmpeg] Fixing aspect ratio in "%s"' % filename)
         self.run_ffmpeg(filename, temp_filename, options)
 
         os.remove(encodeFilename(filename))
