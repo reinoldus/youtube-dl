@@ -10,50 +10,51 @@ from ..utils import (
     parse_duration,
     unified_strdate,
 )
-from .subtitles import SubtitlesInfoExtractor
 
 
 class NRKIE(InfoExtractor):
-    _VALID_URL = r'http://(?:www\.)?nrk\.no/(?:video|lyd)/[^/]+/(?P<id>[\dA-F]{16})'
+    _VALID_URL = r'(?:nrk:|http://(?:www\.)?nrk\.no/video/PS\*)(?P<id>\d+)'
 
     _TESTS = [
         {
-            'url': 'http://www.nrk.no/video/dompap_og_andre_fugler_i_piip_show/D0FA54B5C8B6CE59/emne/piipshow/',
-            'md5': 'a6eac35052f3b242bb6bb7f43aed5886',
+            'url': 'http://www.nrk.no/video/PS*150533',
+            'md5': 'bccd850baebefe23b56d708a113229c2',
             'info_dict': {
                 'id': '150533',
                 'ext': 'flv',
                 'title': 'Dompap og andre fugler i Piip-Show',
-                'description': 'md5:d9261ba34c43b61c812cb6b0269a5c8f'
+                'description': 'md5:d9261ba34c43b61c812cb6b0269a5c8f',
+                'duration': 263,
             }
         },
         {
-            'url': 'http://www.nrk.no/lyd/lyd_av_oppleser_for_blinde/AEFDDD5473BA0198/',
-            'md5': '3471f2a51718195164e88f46bf427668',
+            'url': 'http://www.nrk.no/video/PS*154915',
+            'md5': '0b1493ba1aae7d9579a5ad5531bc395a',
             'info_dict': {
                 'id': '154915',
                 'ext': 'flv',
                 'title': 'Slik høres internett ut når du er blind',
                 'description': 'md5:a621f5cc1bd75c8d5104cb048c6b8568',
+                'duration': 20,
             }
         },
     ]
 
     def _real_extract(self, url):
-        mobj = re.match(self._VALID_URL, url)
-        video_id = mobj.group('id')
-
-        page = self._download_webpage(url, video_id)
-
-        video_id = self._html_search_regex(r'<div class="nrk-video" data-nrk-id="(\d+)">', page, 'video id')
+        video_id = self._match_id(url)
 
         data = self._download_json(
-            'http://v7.psapi.nrk.no/mediaelement/%s' % video_id, video_id, 'Downloading media JSON')
+            'http://v8.psapi.nrk.no/mediaelement/%s' % video_id,
+            video_id, 'Downloading media JSON')
 
         if data['usageRights']['isGeoBlocked']:
-            raise ExtractorError('NRK har ikke rettig-heter til å vise dette programmet utenfor Norge', expected=True)
+            raise ExtractorError(
+                'NRK har ikke rettig-heter til å vise dette programmet utenfor Norge',
+                expected=True)
 
-        video_url = data['mediaUrl'] + '?hdcore=3.1.1&plugin=aasp-3.1.1.69.124'
+        video_url = data['mediaUrl'] + '?hdcore=3.5.0&plugin=aasp-3.5.0.151.81'
+
+        duration = parse_duration(data.get('duration'))
 
         images = data.get('images')
         if images:
@@ -69,11 +70,52 @@ class NRKIE(InfoExtractor):
             'ext': 'flv',
             'title': data['title'],
             'description': data['description'],
+            'duration': duration,
             'thumbnail': thumbnail,
         }
 
 
-class NRKTVIE(SubtitlesInfoExtractor):
+class NRKPlaylistIE(InfoExtractor):
+    _VALID_URL = r'http://(?:www\.)?nrk\.no/(?!video)(?:[^/]+/)+(?P<id>[^/]+)'
+
+    _TESTS = [{
+        'url': 'http://www.nrk.no/troms/gjenopplev-den-historiske-solformorkelsen-1.12270763',
+        'info_dict': {
+            'id': 'gjenopplev-den-historiske-solformorkelsen-1.12270763',
+            'title': 'Gjenopplev den historiske solformørkelsen',
+            'description': 'md5:c2df8ea3bac5654a26fc2834a542feed',
+        },
+        'playlist_count': 2,
+    }, {
+        'url': 'http://www.nrk.no/kultur/bok/rivertonprisen-til-karin-fossum-1.12266449',
+        'info_dict': {
+            'id': 'rivertonprisen-til-karin-fossum-1.12266449',
+            'title': 'Rivertonprisen til Karin Fossum',
+            'description': 'Første kvinne på 15 år til å vinne krimlitteraturprisen.',
+        },
+        'playlist_count': 5,
+    }]
+
+    def _real_extract(self, url):
+        playlist_id = self._match_id(url)
+
+        webpage = self._download_webpage(url, playlist_id)
+
+        entries = [
+            self.url_result('nrk:%s' % video_id, 'NRK')
+            for video_id in re.findall(
+                r'class="[^"]*\brich\b[^"]*"[^>]+data-video-id="([^"]+)"',
+                webpage)
+        ]
+
+        playlist_title = self._og_search_title(webpage)
+        playlist_description = self._og_search_description(webpage)
+
+        return self.playlist_result(
+            entries, playlist_id, playlist_title, playlist_description)
+
+
+class NRKTVIE(InfoExtractor):
     _VALID_URL = r'(?P<baseurl>http://tv\.nrk(?:super)?\.no/)(?:serie/[^/]+|program)/(?P<id>[a-zA-Z]{4}\d{8})(?:/\d{2}-\d{2}-\d{4})?(?:#del=(?P<part_id>\d+))?'
 
     _TESTS = [
@@ -149,28 +191,19 @@ class NRKTVIE(SubtitlesInfoExtractor):
         }
     ]
 
-    def _seconds2str(self, s):
-        return '%02d:%02d:%02d.%03d' % (s / 3600, (s % 3600) / 60, s % 60, (s % 1) * 1000)
-
     def _debug_print(self, txt):
         if self._downloader.params.get('verbose', False):
             self.to_screen('[debug] %s' % txt)
 
-    def _extract_captions(self, subtitlesurl, video_id, baseurl):
+    def _get_subtitles(self, subtitlesurl, video_id, baseurl):
         url = "%s%s" % (baseurl, subtitlesurl)
         self._debug_print('%s: Subtitle url: %s' % (video_id, url))
-        captions = self._download_xml(url, video_id, 'Downloading subtitles')
+        captions = self._download_xml(
+            url, video_id, 'Downloading subtitles')
         lang = captions.get('lang', 'no')
-        ps = captions.findall('./{0}body/{0}div/{0}p'.format('{http://www.w3.org/ns/ttml}'))
-        srt = ''
-        for pos, p in enumerate(ps):
-            begin = parse_duration(p.get('begin'))
-            duration = parse_duration(p.get('dur'))
-            starttime = self._seconds2str(begin)
-            endtime = self._seconds2str(begin + duration)
-            text = '\n'.join(p.itertext())
-            srt += '%s\r\n%s --> %s\r\n%s\r\n\r\n' % (str(pos), starttime, endtime, text)
-        return {lang: srt}
+        return {lang: [
+            {'ext': 'ttml', 'url': url},
+        ]}
 
     def _extract_f4m(self, manifest_url, video_id):
         return self._extract_f4m_formats(manifest_url + '?hdcore=3.1.1&plugin=aasp-3.1.1.69.124', video_id)
@@ -243,10 +276,7 @@ class NRKTVIE(SubtitlesInfoExtractor):
             webpage, 'subtitle URL', default=None)
         subtitles = None
         if subtitles_url:
-            subtitles = self._extract_captions(subtitles_url, video_id, baseurl)
-        if self._downloader.params.get('listsubtitles', False):
-            self._list_available_subtitles(video_id, subtitles)
-            return
+            subtitles = self.extract_subtitles(subtitles_url, video_id, baseurl)
 
         return {
             'id': video_id,

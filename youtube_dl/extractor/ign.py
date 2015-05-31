@@ -34,6 +34,9 @@ class IGNIE(InfoExtractor):
         },
         {
             'url': 'http://me.ign.com/en/feature/15775/100-little-things-in-gta-5-that-will-blow-your-mind',
+            'info_dict': {
+                'id': '100-little-things-in-gta-5-that-will-blow-your-mind',
+            },
             'playlist': [
                 {
                     'info_dict': {
@@ -58,7 +61,7 @@ class IGNIE(InfoExtractor):
         },
         {
             'url': 'http://www.ign.com/articles/2014/08/15/rewind-theater-wild-trailer-gamescom-2014?watch',
-            'md5': '4e9a0bda1e5eebd31ddcf86ec0b9b3c7',
+            'md5': '618fedb9c901fd086f6f093564ef8558',
             'info_dict': {
                 'id': '078fdd005f6d3c02f63d795faa1b984f',
                 'ext': 'mp4',
@@ -74,10 +77,10 @@ class IGNIE(InfoExtractor):
     def _find_video_id(self, webpage):
         res_id = [
             r'"video_id"\s*:\s*"(.*?)"',
+            r'class="hero-poster[^"]*?"[^>]*id="(.+?)"',
             r'data-video-id="(.+?)"',
             r'<object id="vid_(.+?)"',
             r'<meta name="og:image" content=".*/(.+?)-(.+?)/.+.jpg"',
-            r'class="hero-poster[^"]*?"[^>]*id="(.+?)"',
         ]
         return self._search_regex(res_id, webpage, 'video id')
 

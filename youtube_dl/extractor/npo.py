@@ -1,7 +1,5 @@
 from __future__ import unicode_literals
 
-import re
-
 from .common import InfoExtractor
 from ..utils import (
     fix_xml_ampersands,
@@ -24,7 +22,7 @@ class NPOBaseIE(InfoExtractor):
 
 class NPOIE(NPOBaseIE):
     IE_NAME = 'npo.nl'
-    _VALID_URL = r'https?://www\.npo\.nl/[^/]+/[^/]+/(?P<id>[^/?]+)'
+    _VALID_URL = r'https?://(?:www\.)?npo\.nl/(?!live|radio)[^/]+/[^/]+/(?P<id>[^/?]+)'
 
     _TESTS = [
         {
@@ -163,6 +161,13 @@ class NPOIE(NPOBaseIE):
 
         self._sort_formats(formats)
 
+        subtitles = {}
+        if metadata.get('tt888') == 'ja':
+            subtitles['nl'] = [{
+                'ext': 'vtt',
+                'url': 'http://e.omroep.nl/tt888/%s' % video_id,
+            }]
+
         return {
             'id': video_id,
             'title': metadata['titel'],
@@ -171,12 +176,13 @@ class NPOIE(NPOBaseIE):
             'upload_date': unified_strdate(metadata.get('gidsdatum')),
             'duration': parse_duration(metadata.get('tijdsduur')),
             'formats': formats,
+            'subtitles': subtitles,
         }
 
 
 class NPOLiveIE(NPOBaseIE):
     IE_NAME = 'npo.nl:live'
-    _VALID_URL = r'https?://www\.npo\.nl/live/(?P<id>.+)'
+    _VALID_URL = r'https?://(?:www\.)?npo\.nl/live/(?P<id>.+)'
 
     _TEST = {
         'url': 'http://www.npo.nl/live/npo-1',
@@ -213,7 +219,8 @@ class NPOLiveIE(NPOBaseIE):
         if streams:
             for stream in streams:
                 stream_type = stream.get('type').lower()
-                if stream_type == 'ss':
+                # smooth streaming is not supported
+                if stream_type in ['ss', 'ms']:
                     continue
                 stream_info = self._download_json(
                     'http://ida.omroep.nl/aapi/?stream=%s&token=%s&type=jsonp'
@@ -224,7 +231,10 @@ class NPOLiveIE(NPOBaseIE):
                 stream_url = self._download_json(
                     stream_info['stream'], display_id,
                     'Downloading %s URL' % stream_type,
-                    transform_source=strip_jsonp)
+                    'Unable to download %s URL' % stream_type,
+                    transform_source=strip_jsonp, fatal=False)
+                if not stream_url:
+                    continue
                 if stream_type == 'hds':
                     f4m_formats = self._extract_f4m_formats(stream_url, display_id)
                     # f4m downloader downloads only piece of live stream
@@ -236,6 +246,7 @@ class NPOLiveIE(NPOBaseIE):
                 else:
                     formats.append({
                         'url': stream_url,
+                        'preference': -10,
                     })
 
         self._sort_formats(formats)
@@ -248,6 +259,84 @@ class NPOLiveIE(NPOBaseIE):
             'thumbnail': metadata.get('images', [{'url': None}])[-1]['url'],
             'formats': formats,
             'is_live': True,
+        }
+
+
+class NPORadioIE(InfoExtractor):
+    IE_NAME = 'npo.nl:radio'
+    _VALID_URL = r'https?://(?:www\.)?npo\.nl/radio/(?P<id>[^/]+)/?$'
+
+    _TEST = {
+        'url': 'http://www.npo.nl/radio/radio-1',
+        'info_dict': {
+            'id': 'radio-1',
+            'ext': 'mp3',
+            'title': 're:^NPO Radio 1 [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$',
+            'is_live': True,
+        },
+        'params': {
+            'skip_download': True,
+        }
+    }
+
+    @staticmethod
+    def _html_get_attribute_regex(attribute):
+        return r'{0}\s*=\s*\'([^\']+)\''.format(attribute)
+
+    def _real_extract(self, url):
+        video_id = self._match_id(url)
+
+        webpage = self._download_webpage(url, video_id)
+
+        title = self._html_search_regex(
+            self._html_get_attribute_regex('data-channel'), webpage, 'title')
+
+        stream = self._parse_json(
+            self._html_search_regex(self._html_get_attribute_regex('data-streams'), webpage, 'data-streams'),
+            video_id)
+
+        codec = stream.get('codec')
+
+        return {
+            'id': video_id,
+            'url': stream['url'],
+            'title': self._live_title(title),
+            'acodec': codec,
+            'ext': codec,
+            'is_live': True,
+        }
+
+
+class NPORadioFragmentIE(InfoExtractor):
+    IE_NAME = 'npo.nl:radio:fragment'
+    _VALID_URL = r'https?://(?:www\.)?npo\.nl/radio/[^/]+/fragment/(?P<id>\d+)'
+
+    _TEST = {
+        'url': 'http://www.npo.nl/radio/radio-5/fragment/174356',
+        'md5': 'dd8cc470dad764d0fdc70a9a1e2d18c2',
+        'info_dict': {
+            'id': '174356',
+            'ext': 'mp3',
+            'title': 'Jubileumconcert Willeke Alberti',
+        },
+    }
+
+    def _real_extract(self, url):
+        audio_id = self._match_id(url)
+
+        webpage = self._download_webpage(url, audio_id)
+
+        title = self._html_search_regex(
+            r'href="/radio/[^/]+/fragment/%s" title="([^"]+)"' % audio_id,
+            webpage, 'title')
+
+        audio_url = self._search_regex(
+            r"data-streams='([^']+)'", webpage, 'audio url')
+
+        return {
+            'id': audio_id,
+            'url': audio_url,
+            'title': title,
         }
 
 

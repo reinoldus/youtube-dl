@@ -2,15 +2,18 @@ from __future__ import unicode_literals
 
 import xml.etree.ElementTree
 
-from .subtitles import SubtitlesInfoExtractor
-from ..utils import ExtractorError
+from .common import InfoExtractor
+from ..utils import (
+    ExtractorError,
+    int_or_none,
+)
 from ..compat import compat_HTTPError
 
 
-class BBCCoUkIE(SubtitlesInfoExtractor):
+class BBCCoUkIE(InfoExtractor):
     IE_NAME = 'bbc.co.uk'
     IE_DESC = 'BBC iPlayer'
-    _VALID_URL = r'https?://(?:www\.)?bbc\.co\.uk/(?:(?:(?:programmes|iplayer/(?:episode|playlist))/)|music/clips[/#])(?P<id>[\da-z]{8})'
+    _VALID_URL = r'https?://(?:www\.)?bbc\.co\.uk/(?:(?:(?:programmes|iplayer(?:/[^/]+)?/(?:episode|playlist))/)|music/clips[/#])(?P<id>[\da-z]{8})'
 
     _TESTS = [
         {
@@ -113,10 +116,27 @@ class BBCCoUkIE(SubtitlesInfoExtractor):
                 'skip_download': True,
             }
         }, {
+            'url': 'http://www.bbc.co.uk/iplayer/episode/b054fn09/ad/natural-world-20152016-2-super-powered-owls',
+            'info_dict': {
+                'id': 'p02n76xf',
+                'ext': 'flv',
+                'title': 'Natural World, 2015-2016: 2. Super Powered Owls',
+                'description': 'md5:e4db5c937d0e95a7c6b5e654d429183d',
+                'duration': 3540,
+            },
+            'params': {
+                # rtmp download
+                'skip_download': True,
+            },
+            'skip': 'geolocation',
+        }, {
             'url': 'http://www.bbc.co.uk/iplayer/playlist/p01dvks4',
             'only_matching': True,
         }, {
             'url': 'http://www.bbc.co.uk/music/clips#p02frcc3',
+            'only_matching': True,
+        }, {
+            'url': 'http://www.bbc.co.uk/iplayer/cbeebies/episode/b0480276/bing-14-atchoo',
             'only_matching': True,
         }
     ]
@@ -212,17 +232,32 @@ class BBCCoUkIE(SubtitlesInfoExtractor):
             formats.extend(conn_formats)
         return formats
 
-    def _extract_captions(self, media, programme_id):
+    def _get_subtitles(self, media, programme_id):
         subtitles = {}
         for connection in self._extract_connections(media):
             captions = self._download_xml(connection.get('href'), programme_id, 'Downloading captions')
             lang = captions.get('{http://www.w3.org/XML/1998/namespace}lang', 'en')
             ps = captions.findall('./{0}body/{0}div/{0}p'.format('{http://www.w3.org/2006/10/ttaf1}'))
             srt = ''
+
+            def _extract_text(p):
+                if p.text is not None:
+                    stripped_text = p.text.strip()
+                    if stripped_text:
+                        return stripped_text
+                return ' '.join(span.text.strip() for span in p.findall('{http://www.w3.org/2006/10/ttaf1}span'))
             for pos, p in enumerate(ps):
-                srt += '%s\r\n%s --> %s\r\n%s\r\n\r\n' % (str(pos), p.get('begin'), p.get('end'),
-                                                          p.text.strip() if p.text is not None else '')
-            subtitles[lang] = srt
+                srt += '%s\r\n%s --> %s\r\n%s\r\n\r\n' % (str(pos), p.get('begin'), p.get('end'), _extract_text(p))
+            subtitles[lang] = [
+                {
+                    'url': connection.get('href'),
+                    'ext': 'ttml',
+                },
+                {
+                    'data': srt,
+                    'ext': 'srt',
+                },
+            ]
         return subtitles
 
     def _download_media_selector(self, programme_id):
@@ -246,7 +281,7 @@ class BBCCoUkIE(SubtitlesInfoExtractor):
             elif kind == 'video':
                 formats.extend(self._extract_video(media, programme_id))
             elif kind == 'captions':
-                subtitles = self._extract_captions(media, programme_id)
+                subtitles = self.extract_subtitles(media, programme_id)
 
         return formats, subtitles
 
@@ -270,7 +305,7 @@ class BBCCoUkIE(SubtitlesInfoExtractor):
                     formats, subtitles = self._download_media_selector(programme_id)
                 return programme_id, title, description, duration, formats, subtitles
         except ExtractorError as ee:
-            if not isinstance(ee.cause, compat_HTTPError) and ee.cause.code == 404:
+            if not (isinstance(ee.cause, compat_HTTPError) and ee.cause.code == 404):
                 raise
 
         # fallback to legacy playlist
@@ -308,22 +343,29 @@ class BBCCoUkIE(SubtitlesInfoExtractor):
 
         webpage = self._download_webpage(url, group_id, 'Downloading video page')
 
-        programme_id = self._search_regex(
-            r'"vpid"\s*:\s*"([\da-z]{8})"', webpage, 'vpid', fatal=False, default=None)
+        programme_id = None
+
+        tviplayer = self._search_regex(
+            r'mediator\.bind\(({.+?})\s*,\s*document\.getElementById',
+            webpage, 'player', default=None)
+
+        if tviplayer:
+            player = self._parse_json(tviplayer, group_id).get('player', {})
+            duration = int_or_none(player.get('duration'))
+            programme_id = player.get('vpid')
+
+        if not programme_id:
+            programme_id = self._search_regex(
+                r'"vpid"\s*:\s*"([\da-z]{8})"', webpage, 'vpid', fatal=False, default=None)
+
         if programme_id:
-            player = self._download_json(
-                'http://www.bbc.co.uk/iplayer/episode/%s.json' % group_id,
-                group_id)['jsConf']['player']
-            title = player['title']
-            description = player['subtitle']
-            duration = player['duration']
             formats, subtitles = self._download_media_selector(programme_id)
+            title = self._og_search_title(webpage)
+            description = self._search_regex(
+                r'<p class="medium-description">([^<]+)</p>',
+                webpage, 'description', fatal=False)
         else:
             programme_id, title, description, duration, formats, subtitles = self._download_playlist(group_id)
-
-        if self._downloader.params.get('listsubtitles', False):
-            self._list_available_subtitles(programme_id, subtitles)
-            return
 
         self._sort_formats(formats)
 
@@ -331,6 +373,7 @@ class BBCCoUkIE(SubtitlesInfoExtractor):
             'id': programme_id,
             'title': title,
             'description': description,
+            'thumbnail': self._og_search_thumbnail(webpage, default=None),
             'duration': duration,
             'formats': formats,
             'subtitles': subtitles,

@@ -95,6 +95,7 @@ class BrightcoveIE(InfoExtractor):
             'url': 'http://c.brightcove.com/services/viewer/htmlFederated?playerID=3550052898001&playerKey=AQ%7E%7E%2CAAABmA9XpXk%7E%2C-Kp7jNgisre1fG5OdqpAFUTcs0lP_ZoL',
             'info_dict': {
                 'title': 'Sealife',
+                'id': '3550319591001',
             },
             'playlist_mincount': 7,
         },
@@ -108,7 +109,7 @@ class BrightcoveIE(InfoExtractor):
         """
 
         # Fix up some stupid HTML, see https://github.com/rg3/youtube-dl/issues/1553
-        object_str = re.sub(r'(<param name="[^"]+" value="[^"]+")>',
+        object_str = re.sub(r'(<param(?:\s+[a-zA-Z0-9_]+="[^"]*")*)>',
                             lambda m: m.group(1) + '/>', object_str)
         # Fix up some stupid XML, see https://github.com/rg3/youtube-dl/issues/1608
         object_str = object_str.replace('<--', '<!--')
@@ -116,7 +117,10 @@ class BrightcoveIE(InfoExtractor):
         object_str = re.sub(r'(<object[^>]*)(xmlns=".*?")', r'\1', object_str)
         object_str = fix_xml_ampersands(object_str)
 
-        object_doc = xml.etree.ElementTree.fromstring(object_str.encode('utf-8'))
+        try:
+            object_doc = xml.etree.ElementTree.fromstring(object_str.encode('utf-8'))
+        except xml.etree.ElementTree.ParseError:
+            return
 
         fv_el = find_xpath_attr(object_doc, './param', 'name', 'flashVars')
         if fv_el is not None:
@@ -182,9 +186,9 @@ class BrightcoveIE(InfoExtractor):
             (?:
                 [^>]+?class=[\'"][^>]*?BrightcoveExperience.*?[\'"] |
                 [^>]*?>\s*<param\s+name="movie"\s+value="https?://[^/]*brightcove\.com/
-            ).+?</object>''',
+            ).+?>\s*</object>''',
             webpage)
-        return [cls._build_brighcove_url(m) for m in matches]
+        return list(filter(None, [cls._build_brighcove_url(m) for m in matches]))
 
     def _real_extract(self, url):
         url, smuggled_data = unsmuggle_url(url, {})
@@ -247,7 +251,7 @@ class BrightcoveIE(InfoExtractor):
         playlist_info = json_data['videoList']
         videos = [self._extract_video_info(video_info) for video_info in playlist_info['mediaCollectionDTO']['videoDTOs']]
 
-        return self.playlist_result(videos, playlist_id=playlist_info['id'],
+        return self.playlist_result(videos, playlist_id='%s' % playlist_info['id'],
                                     playlist_title=playlist_info['mediaCollectionDTO']['displayName'])
 
     def _extract_video_info(self, video_info):

@@ -9,6 +9,7 @@ import codecs
 import io
 import os
 import random
+import shlex
 import sys
 
 
@@ -23,9 +24,10 @@ from .compat import (
 )
 from .utils import (
     DateRange,
-    DEFAULT_OUTTMPL,
     decodeOption,
+    DEFAULT_OUTTMPL,
     DownloadError,
+    match_filter_func,
     MaxDownloadsReached,
     preferredencoding,
     read_batch_urls,
@@ -143,10 +145,13 @@ def _real_main(argv=None):
             parser.error('invalid max_filesize specified')
         opts.max_filesize = numeric_limit
     if opts.retries is not None:
-        try:
-            opts.retries = int(opts.retries)
-        except (TypeError, ValueError):
-            parser.error('invalid retry count specified')
+        if opts.retries in ('inf', 'infinite'):
+            opts_retries = float('inf')
+        else:
+            try:
+                opts_retries = int(opts.retries)
+            except (TypeError, ValueError):
+                parser.error('invalid retry count specified')
     if opts.buffersize is not None:
         numeric_buffersize = FileDownloader.parse_bytes(opts.buffersize)
         if numeric_buffersize is None:
@@ -166,6 +171,9 @@ def _real_main(argv=None):
     if opts.recodevideo is not None:
         if opts.recodevideo not in ['mp4', 'flv', 'webm', 'ogg', 'mkv']:
             parser.error('invalid video recode format specified')
+    if opts.convertsubtitles is not None:
+        if opts.convertsubtitles not in ['srt', 'vtt', 'ass']:
+            parser.error('invalid subtitle format specified')
 
     if opts.date is not None:
         date = DateRange.day(opts.date)
@@ -181,18 +189,14 @@ def _real_main(argv=None):
     if opts.allsubtitles and not opts.writeautomaticsub:
         opts.writesubtitles = True
 
-    if sys.version_info < (3,):
-        # In Python 2, sys.argv is a bytestring (also note http://bugs.python.org/issue2128 for Windows systems)
-        if opts.outtmpl is not None:
-            opts.outtmpl = opts.outtmpl.decode(preferredencoding())
-    outtmpl = ((opts.outtmpl is not None and opts.outtmpl)
-               or (opts.format == '-1' and opts.usetitle and '%(title)s-%(id)s-%(format)s.%(ext)s')
-               or (opts.format == '-1' and '%(id)s-%(format)s.%(ext)s')
-               or (opts.usetitle and opts.autonumber and '%(autonumber)s-%(title)s-%(id)s.%(ext)s')
-               or (opts.usetitle and '%(title)s-%(id)s.%(ext)s')
-               or (opts.useid and '%(id)s.%(ext)s')
-               or (opts.autonumber and '%(autonumber)s-%(id)s.%(ext)s')
-               or DEFAULT_OUTTMPL)
+    outtmpl = ((opts.outtmpl is not None and opts.outtmpl) or
+               (opts.format == '-1' and opts.usetitle and '%(title)s-%(id)s-%(format)s.%(ext)s') or
+               (opts.format == '-1' and '%(id)s-%(format)s.%(ext)s') or
+               (opts.usetitle and opts.autonumber and '%(autonumber)s-%(title)s-%(id)s.%(ext)s') or
+               (opts.usetitle and '%(title)s-%(id)s.%(ext)s') or
+               (opts.useid and '%(id)s.%(ext)s') or
+               (opts.autonumber and '%(autonumber)s-%(id)s.%(ext)s') or
+               DEFAULT_OUTTMPL)
     if not os.path.splitext(outtmpl)[1] and opts.extractaudio:
         parser.error('Cannot download a video and extract audio into the same'
                      ' file! Use "{0}.%(ext)s" instead of "{0}" as the output'
@@ -205,6 +209,11 @@ def _real_main(argv=None):
     # PostProcessors
     postprocessors = []
     # Add the metadata pp first, the other pps will copy it
+    if opts.metafromtitle:
+        postprocessors.append({
+            'key': 'MetadataFromTitle',
+            'titleformat': opts.metafromtitle
+        })
     if opts.addmetadata:
         postprocessors.append({'key': 'FFmpegMetadata'})
     if opts.extractaudio:
@@ -219,25 +228,44 @@ def _real_main(argv=None):
             'key': 'FFmpegVideoConvertor',
             'preferedformat': opts.recodevideo,
         })
+    if opts.convertsubtitles:
+        postprocessors.append({
+            'key': 'FFmpegSubtitlesConvertor',
+            'format': opts.convertsubtitles,
+        })
     if opts.embedsubtitles:
         postprocessors.append({
             'key': 'FFmpegEmbedSubtitle',
-            'subtitlesformat': opts.subtitlesformat,
         })
     if opts.xattrs:
         postprocessors.append({'key': 'XAttrMetadata'})
     if opts.embedthumbnail:
-        if not opts.addmetadata:
-            postprocessors.append({'key': 'FFmpegAudioFix'})
-        postprocessors.append({'key': 'AtomicParsley'})
+        already_have_thumbnail = opts.writethumbnail or opts.write_all_thumbnails
+        postprocessors.append({
+            'key': 'EmbedThumbnail',
+            'already_have_thumbnail': already_have_thumbnail
+        })
+        if not already_have_thumbnail:
+            opts.writethumbnail = True
     # Please keep ExecAfterDownload towards the bottom as it allows the user to modify the final file in any way.
     # So if the user is able to remove the file before your postprocessor runs it might cause a few problems.
     if opts.exec_cmd:
         postprocessors.append({
             'key': 'ExecAfterDownload',
-            'verboseOutput': opts.verbose,
             'exec_cmd': opts.exec_cmd,
         })
+    if opts.xattr_set_filesize:
+        try:
+            import xattr
+            xattr  # Confuse flake8
+        except ImportError:
+            parser.error('setting filesize xattr requested but python-xattr is not available')
+    external_downloader_args = None
+    if opts.external_downloader_args:
+        external_downloader_args = shlex.split(opts.external_downloader_args)
+    match_filter = (
+        None if opts.match_filter is None
+        else match_filter_func(opts.match_filter))
 
     ydl_opts = {
         'usenetrc': opts.usenetrc,
@@ -260,7 +288,6 @@ def _real_main(argv=None):
         'simulate': opts.simulate or any_getting,
         'skip_download': opts.skip_download,
         'format': opts.format,
-        'format_limit': opts.format_limit,
         'listformats': opts.listformats,
         'outtmpl': outtmpl,
         'autonumber_size': opts.autonumber_size,
@@ -268,7 +295,7 @@ def _real_main(argv=None):
         'ignoreerrors': opts.ignoreerrors,
         'ratelimit': opts.ratelimit,
         'nooverwrites': opts.nooverwrites,
-        'retries': opts.retries,
+        'retries': opts_retries,
         'buffersize': opts.buffersize,
         'noresizebuffer': opts.noresizebuffer,
         'continuedl': opts.continue_dl,
@@ -286,6 +313,7 @@ def _real_main(argv=None):
         'writeannotations': opts.writeannotations,
         'writeinfojson': opts.writeinfojson,
         'writethumbnail': opts.writethumbnail,
+        'write_all_thumbnails': opts.write_all_thumbnails,
         'writesubtitles': opts.writesubtitles,
         'writeautomaticsub': opts.writeautomaticsub,
         'allsubtitles': opts.allsubtitles,
@@ -322,13 +350,23 @@ def _real_main(argv=None):
         'default_search': opts.default_search,
         'youtube_include_dash_manifest': opts.youtube_include_dash_manifest,
         'encoding': opts.encoding,
-        'exec_cmd': opts.exec_cmd,
         'extract_flat': opts.extract_flat,
         'merge_output_format': opts.merge_output_format,
         'postprocessors': postprocessors,
         'fixup': opts.fixup,
         'source_address': opts.source_address,
         'call_home': opts.call_home,
+        'sleep_interval': opts.sleep_interval,
+        'external_downloader': opts.external_downloader,
+        'list_thumbnails': opts.list_thumbnails,
+        'playlist_items': opts.playlist_items,
+        'xattr_set_filesize': opts.xattr_set_filesize,
+        'match_filter': match_filter,
+        'no_color': opts.no_color,
+        'ffmpeg_location': opts.ffmpeg_location,
+        'hls_prefer_native': opts.hls_prefer_native,
+        'external_downloader_args': external_downloader_args,
+        'cn_verification_proxy': opts.cn_verification_proxy,
     }
 
     with YoutubeDL(ydl_opts) as ydl:
@@ -346,7 +384,9 @@ def _real_main(argv=None):
                 sys.exit()
 
             ydl.warn_if_short_id(sys.argv[1:] if argv is None else argv)
-            parser.error('you must provide at least one URL')
+            parser.error(
+                'You must provide at least one URL.\n'
+                'Type youtube-dl --help to see a list of all options.')
 
         try:
             if opts.load_info_filename is not None:

@@ -6,7 +6,6 @@ import json
 import itertools
 
 from .common import InfoExtractor
-from .subtitles import SubtitlesInfoExtractor
 
 from ..compat import (
     compat_str,
@@ -26,12 +25,11 @@ class DailymotionBaseInfoExtractor(InfoExtractor):
     def _build_request(url):
         """Build a request with the family filter disabled"""
         request = compat_urllib_request.Request(url)
-        request.add_header('Cookie', 'family_filter=off')
-        request.add_header('Cookie', 'ff=off')
+        request.add_header('Cookie', 'family_filter=off; ff=off')
         return request
 
 
-class DailymotionIE(DailymotionBaseInfoExtractor, SubtitlesInfoExtractor):
+class DailymotionIE(DailymotionBaseInfoExtractor):
     """Information Extractor for Dailymotion"""
 
     _VALID_URL = r'(?i)(?:https?://)?(?:(www|touch)\.)?dailymotion\.[a-z]{2,3}/(?:(embed|#)/)?video/(?P<id>[^/?_]+)'
@@ -47,13 +45,14 @@ class DailymotionIE(DailymotionBaseInfoExtractor, SubtitlesInfoExtractor):
 
     _TESTS = [
         {
-            'url': 'http://www.dailymotion.com/video/x33vw9_tutoriel-de-youtubeur-dl-des-video_tech',
-            'md5': '392c4b85a60a90dc4792da41ce3144eb',
+            'url': 'https://www.dailymotion.com/video/x2iuewm_steam-machine-models-pricing-listed-on-steam-store-ign-news_videogames',
+            'md5': '2137c41a8e78554bb09225b8eb322406',
             'info_dict': {
-                'id': 'x33vw9',
+                'id': 'x2iuewm',
                 'ext': 'mp4',
-                'uploader': 'Amphora Alex and Van .',
-                'title': 'Tutoriel de Youtubeur"DL DES VIDEO DE YOUTUBE"',
+                'uploader': 'IGN',
+                'title': 'Steam Machine Models, Pricing Listed on Steam Store - IGN News',
+                'upload_date': '20150306',
             }
         },
         # Vevo video
@@ -87,7 +86,7 @@ class DailymotionIE(DailymotionBaseInfoExtractor, SubtitlesInfoExtractor):
 
     def _real_extract(self, url):
         video_id = self._match_id(url)
-        url = 'http://www.dailymotion.com/video/%s' % video_id
+        url = 'https://www.dailymotion.com/video/%s' % video_id
 
         # Retrieve video webpage to extract further information
         request = self._build_request(url)
@@ -108,13 +107,14 @@ class DailymotionIE(DailymotionBaseInfoExtractor, SubtitlesInfoExtractor):
         age_limit = self._rta_search(webpage)
 
         video_upload_date = None
-        mobj = re.search(r'<div class="[^"]*uploaded_cont[^"]*" title="[^"]*">([0-9]{2})-([0-9]{2})-([0-9]{4})</div>', webpage)
+        mobj = re.search(r'<meta property="video:release_date" content="([0-9]{4})-([0-9]{2})-([0-9]{2}).+?"/>', webpage)
         if mobj is not None:
-            video_upload_date = mobj.group(3) + mobj.group(2) + mobj.group(1)
+            video_upload_date = mobj.group(1) + mobj.group(2) + mobj.group(3)
 
-        embed_url = 'http://www.dailymotion.com/embed/video/%s' % video_id
-        embed_page = self._download_webpage(embed_url, video_id,
-                                            'Downloading embed page')
+        embed_url = 'https://www.dailymotion.com/embed/video/%s' % video_id
+        embed_request = self._build_request(embed_url)
+        embed_page = self._download_webpage(
+            embed_request, video_id, 'Downloading embed page')
         info = self._search_regex(r'var info = ({.*?}),$', embed_page,
                                   'video info', flags=re.MULTILINE)
         info = json.loads(info)
@@ -143,9 +143,6 @@ class DailymotionIE(DailymotionBaseInfoExtractor, SubtitlesInfoExtractor):
 
         # subtitles
         video_subtitles = self.extract_subtitles(video_id, webpage)
-        if self._downloader.params.get('listsubtitles', False):
-            self._list_available_subtitles(video_id, webpage)
-            return
 
         view_count = str_to_int(self._search_regex(
             r'video_views_count[^>]+>\s+([\d\.,]+)',
@@ -169,7 +166,7 @@ class DailymotionIE(DailymotionBaseInfoExtractor, SubtitlesInfoExtractor):
             'view_count': view_count,
         }
 
-    def _get_available_subtitles(self, video_id, webpage):
+    def _get_subtitles(self, video_id, webpage):
         try:
             sub_list = self._download_webpage(
                 'https://api.dailymotion.com/video/%s/subtitles?fields=id,language,url' % video_id,
@@ -179,7 +176,7 @@ class DailymotionIE(DailymotionBaseInfoExtractor, SubtitlesInfoExtractor):
             return {}
         info = json.loads(sub_list)
         if (info['total'] > 0):
-            sub_lang_list = dict((l['language'], l['url']) for l in info['list'])
+            sub_lang_list = dict((l['language'], [{'url': l['url'], 'ext': 'srt'}]) for l in info['list'])
             return sub_lang_list
         self._downloader.report_warning('video doesn\'t have subtitles')
         return {}
@@ -194,6 +191,7 @@ class DailymotionPlaylistIE(DailymotionBaseInfoExtractor):
         'url': 'http://www.dailymotion.com/playlist/xv4bw_nqtv_sport/1#video=xl8v3q',
         'info_dict': {
             'title': 'SPORT',
+            'id': 'xv4bw_nqtv_sport',
         },
         'playlist_mincount': 20,
     }]
@@ -227,7 +225,7 @@ class DailymotionPlaylistIE(DailymotionBaseInfoExtractor):
 
 class DailymotionUserIE(DailymotionPlaylistIE):
     IE_NAME = 'dailymotion:user'
-    _VALID_URL = r'https?://(?:www\.)?dailymotion\.[a-z]{2,3}/user/(?P<user>[^/]+)'
+    _VALID_URL = r'https?://(?:www\.)?dailymotion\.[a-z]{2,3}/(?:(?:old/)?user/)?(?P<user>[^/]+)$'
     _PAGE_TEMPLATE = 'http://www.dailymotion.com/user/%s/%s'
     _TESTS = [{
         'url': 'https://www.dailymotion.com/user/nqtv',
@@ -241,7 +239,8 @@ class DailymotionUserIE(DailymotionPlaylistIE):
     def _real_extract(self, url):
         mobj = re.match(self._VALID_URL, url)
         user = mobj.group('user')
-        webpage = self._download_webpage(url, user)
+        webpage = self._download_webpage(
+            'https://www.dailymotion.com/user/%s' % user, user)
         full_user = unescapeHTML(self._html_search_regex(
             r'<a class="nav-image" title="([^"]+)" href="/%s">' % re.escape(user),
             webpage, 'user'))

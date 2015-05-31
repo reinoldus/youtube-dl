@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 import re
 
 from .common import InfoExtractor
-from .subtitles import SubtitlesInfoExtractor
 
 from ..compat import (
     compat_str,
@@ -18,7 +17,7 @@ from ..utils import (
 )
 
 
-class BlipTVIE(SubtitlesInfoExtractor):
+class BlipTVIE(InfoExtractor):
     _VALID_URL = r'https?://(?:\w+\.)?blip\.tv/(?:(?:.+-|rss/flash/)(?P<id>\d+)|((?:play/|api\.swf#)(?P<lookup_id>[\da-zA-Z+_]+)))'
 
     _TESTS = [
@@ -103,6 +102,15 @@ class BlipTVIE(SubtitlesInfoExtractor):
         },
     ]
 
+    @staticmethod
+    def _extract_url(webpage):
+        mobj = re.search(r'<meta\s[^>]*https?://api\.blip\.tv/\w+/redirect/\w+/(\d+)', webpage)
+        if mobj:
+            return 'http://blip.tv/a/a-' + mobj.group(1)
+        mobj = re.search(r'<(?:iframe|embed|object)\s[^>]*(https?://(?:\w+\.)?blip\.tv/(?:play/|api\.swf#)[a-zA-Z0-9_]+)', webpage)
+        if mobj:
+            return mobj.group(1)
+
     def _real_extract(self, url):
         mobj = re.match(self._VALID_URL, url)
         lookup_id = mobj.group('lookup_id')
@@ -143,7 +151,7 @@ class BlipTVIE(SubtitlesInfoExtractor):
         categories = [category.text for category in item.findall('category')]
 
         formats = []
-        subtitles = {}
+        subtitles_urls = {}
 
         media_group = item.find(media('group'))
         for media_content in media_group.findall(media('content')):
@@ -161,7 +169,7 @@ class BlipTVIE(SubtitlesInfoExtractor):
                 }
                 lang = role.rpartition('-')[-1].strip().lower()
                 langcode = LANGS.get(lang, lang)
-                subtitles[langcode] = url
+                subtitles_urls[langcode] = url
             elif media_type.startswith('video/'):
                 formats.append({
                     'url': real_url,
@@ -173,13 +181,10 @@ class BlipTVIE(SubtitlesInfoExtractor):
                     'width': int_or_none(media_content.get('width')),
                     'height': int_or_none(media_content.get('height')),
                 })
+        self._check_formats(formats, video_id)
         self._sort_formats(formats)
 
-        # subtitles
-        video_subtitles = self.extract_subtitles(video_id, subtitles)
-        if self._downloader.params.get('listsubtitles', False):
-            self._list_available_subtitles(video_id, subtitles)
-            return
+        subtitles = self.extract_subtitles(video_id, subtitles_urls)
 
         return {
             'id': video_id,
@@ -192,15 +197,22 @@ class BlipTVIE(SubtitlesInfoExtractor):
             'thumbnail': thumbnail,
             'categories': categories,
             'formats': formats,
-            'subtitles': video_subtitles,
+            'subtitles': subtitles,
         }
 
-    def _download_subtitle_url(self, sub_lang, url):
-        # For some weird reason, blip.tv serves a video instead of subtitles
-        # when we request with a common UA
-        req = compat_urllib_request.Request(url)
-        req.add_header('Youtubedl-user-agent', 'youtube-dl')
-        return self._download_webpage(req, None, note=False)
+    def _get_subtitles(self, video_id, subtitles_urls):
+        subtitles = {}
+        for lang, url in subtitles_urls.items():
+            # For some weird reason, blip.tv serves a video instead of subtitles
+            # when we request with a common UA
+            req = compat_urllib_request.Request(url)
+            req.add_header('User-Agent', 'youtube-dl')
+            subtitles[lang] = [{
+                # The extension is 'srt' but it's actually an 'ass' file
+                'ext': 'ass',
+                'data': self._download_webpage(req, None, note=False),
+            }]
+        return subtitles
 
 
 class BlipTVUserIE(InfoExtractor):

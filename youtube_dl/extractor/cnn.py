@@ -12,7 +12,7 @@ from ..utils import (
 
 class CNNIE(InfoExtractor):
     _VALID_URL = r'''(?x)https?://(?:(?:edition|www)\.)?cnn\.com/video/(?:data/.+?|\?)/
-        (?P<path>.+?/(?P<title>[^/]+?)(?:\.(?:cnn|hln)(?:-ap)?|(?=&)))'''
+        (?P<path>.+?/(?P<title>[^/]+?)(?:\.(?:[a-z\-]+)|(?=&)))'''
 
     _TESTS = [{
         'url': 'http://edition.cnn.com/video/?/video/sports/2013/06/09/nadal-1-on-1.cnn',
@@ -45,13 +45,19 @@ class CNNIE(InfoExtractor):
             'description': 'md5:e7223a503315c9f150acac52e76de086',
             'upload_date': '20141222',
         }
+    }, {
+        'url': 'http://cnn.com/video/?/video/politics/2015/03/27/pkg-arizona-senator-church-attendance-mandatory.ktvk',
+        'only_matching': True,
+    }, {
+        'url': 'http://cnn.com/video/?/video/us/2015/04/06/dnt-baker-refuses-anti-gay-order.wkmg',
+        'only_matching': True,
     }]
 
     def _real_extract(self, url):
         mobj = re.match(self._VALID_URL, url)
         path = mobj.group('path')
         page_title = mobj.group('title')
-        info_url = 'http://cnn.com/video/data/3.0/%s/index.xml' % path
+        info_url = 'http://edition.cnn.com/video/data/3.0/%s/index.xml' % path
         info = self._download_xml(info_url, page_title)
 
         formats = []
@@ -143,13 +149,13 @@ class CNNArticleIE(InfoExtractor):
     _VALID_URL = r'https?://(?:(?:edition|www)\.)?cnn\.com/(?!video/)'
     _TEST = {
         'url': 'http://www.cnn.com/2014/12/21/politics/obama-north-koreas-hack-not-war-but-cyber-vandalism/',
-        'md5': '275b326f85d80dff7592a9820f5dc887',
+        'md5': '689034c2a3d9c6dc4aa72d65a81efd01',
         'info_dict': {
-            'id': 'bestoftv/2014/12/21/sotu-crowley-president-obama-north-korea-not-going-to-be-intimidated.cnn',
+            'id': 'bestoftv/2014/12/21/ip-north-korea-obama.cnn',
             'ext': 'mp4',
-            'title': 'Obama: We\'re not going to be intimidated',
-            'description': 'md5:e735586f3dc936075fa654a4d91b21f9',
-            'upload_date': '20141220',
+            'title': 'Obama: Cyberattack not an act of war',
+            'description': 'md5:51ce6750450603795cad0cdfbd7d05c5',
+            'upload_date': '20141221',
         },
         'add_ie': ['CNN'],
     }

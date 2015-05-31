@@ -9,7 +9,7 @@ import xml.etree.ElementTree
 
 from hashlib import sha1
 from math import pow, sqrt, floor
-from .subtitles import SubtitlesInfoExtractor
+from .common import InfoExtractor
 from ..compat import (
     compat_urllib_parse,
     compat_urllib_request,
@@ -23,13 +23,12 @@ from ..utils import (
 )
 from ..aes import (
     aes_cbc_decrypt,
-    inc,
 )
-from .common import InfoExtractor
 
 
-class CrunchyrollIE(SubtitlesInfoExtractor):
+class CrunchyrollIE(InfoExtractor):
     _VALID_URL = r'https?://(?:(?P<prefix>www|m)\.)?(?P<url>crunchyroll\.(?:com|fr)/(?:[^/]*/[^/?&]*?|media/\?id=)(?P<video_id>[0-9]+))(?:[/?&]|$)'
+    _NETRC_MACHINE = 'crunchyroll'
     _TESTS = [{
         'url': 'http://www.crunchyroll.com/wanna-be-the-strongest-in-the-world/episode-1-an-idol-wrestler-is-born-645513',
         'info_dict': {
@@ -77,8 +76,8 @@ class CrunchyrollIE(SubtitlesInfoExtractor):
         self._login()
 
     def _decrypt_subtitles(self, data, iv, id):
-        data = bytes_to_intlist(data)
-        iv = bytes_to_intlist(iv)
+        data = bytes_to_intlist(base64.b64decode(data.encode('utf-8')))
+        iv = bytes_to_intlist(base64.b64decode(iv.encode('utf-8')))
         id = int(id)
 
         def obfuscate_key_aux(count, modulo, start):
@@ -102,13 +101,6 @@ class CrunchyrollIE(SubtitlesInfoExtractor):
 
         key = obfuscate_key(id)
 
-        class Counter:
-            __value = iv
-
-            def next_value(self):
-                temp = self.__value
-                self.__value = inc(self.__value)
-                return temp
         decrypted_data = intlist_to_bytes(aes_cbc_decrypt(data, key, iv))
         return zlib.decompress(decrypted_data)
 
@@ -187,6 +179,34 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         return output
 
+    def _extract_subtitles(self, subtitle):
+        sub_root = xml.etree.ElementTree.fromstring(subtitle)
+        return [{
+            'ext': 'srt',
+            'data': self._convert_subtitles_to_srt(sub_root),
+        }, {
+            'ext': 'ass',
+            'data': self._convert_subtitles_to_ass(sub_root),
+        }]
+
+    def _get_subtitles(self, video_id, webpage):
+        subtitles = {}
+        for sub_id, sub_name in re.findall(r'\?ssid=([0-9]+)" title="([^"]+)', webpage):
+            sub_page = self._download_webpage(
+                'http://www.crunchyroll.com/xml/?req=RpcApiSubtitle_GetXml&subtitle_script_id=' + sub_id,
+                video_id, note='Downloading subtitles for ' + sub_name)
+            id = self._search_regex(r'id=\'([0-9]+)', sub_page, 'subtitle_id', fatal=False)
+            iv = self._search_regex(r'<iv>([^<]+)', sub_page, 'subtitle_iv', fatal=False)
+            data = self._search_regex(r'<data>([^<]+)', sub_page, 'subtitle_data', fatal=False)
+            if not id or not iv or not data:
+                continue
+            subtitle = self._decrypt_subtitles(data, iv, id).decode('utf-8')
+            lang_code = self._search_regex(r'lang_code=["\']([^"\']+)', subtitle, 'subtitle_lang_code', fatal=False)
+            if not lang_code:
+                continue
+            subtitles[lang_code] = self._extract_subtitles(subtitle)
+        return subtitles
+
     def _real_extract(self, url):
         mobj = re.match(self._VALID_URL, url)
         video_id = mobj.group('video_id')
@@ -239,8 +259,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             streamdata = self._download_xml(
                 streamdata_req, video_id,
                 note='Downloading media info for %s' % video_format)
-            video_url = streamdata.find('.//host').text
-            video_play_path = streamdata.find('.//file').text
+            video_url = streamdata.find('./host').text
+            video_play_path = streamdata.find('./file').text
             formats.append({
                 'url': video_url,
                 'play_path': video_play_path,
@@ -249,34 +269,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 'format_id': video_format,
             })
 
-        subtitles = {}
-        sub_format = self._downloader.params.get('subtitlesformat', 'srt')
-        for sub_id, sub_name in re.findall(r'\?ssid=([0-9]+)" title="([^"]+)', webpage):
-            sub_page = self._download_webpage(
-                'http://www.crunchyroll.com/xml/?req=RpcApiSubtitle_GetXml&subtitle_script_id=' + sub_id,
-                video_id, note='Downloading subtitles for ' + sub_name)
-            id = self._search_regex(r'id=\'([0-9]+)', sub_page, 'subtitle_id', fatal=False)
-            iv = self._search_regex(r'<iv>([^<]+)', sub_page, 'subtitle_iv', fatal=False)
-            data = self._search_regex(r'<data>([^<]+)', sub_page, 'subtitle_data', fatal=False)
-            if not id or not iv or not data:
-                continue
-            id = int(id)
-            iv = base64.b64decode(iv)
-            data = base64.b64decode(data)
-
-            subtitle = self._decrypt_subtitles(data, iv, id).decode('utf-8')
-            lang_code = self._search_regex(r'lang_code=["\']([^"\']+)', subtitle, 'subtitle_lang_code', fatal=False)
-            if not lang_code:
-                continue
-            sub_root = xml.etree.ElementTree.fromstring(subtitle)
-            if sub_format == 'ass':
-                subtitles[lang_code] = self._convert_subtitles_to_ass(sub_root)
-            else:
-                subtitles[lang_code] = self._convert_subtitles_to_srt(sub_root)
-
-        if self._downloader.params.get('listsubtitles', False):
-            self._list_available_subtitles(video_id, subtitles)
-            return
+        subtitles = self.extract_subtitles(video_id, webpage)
 
         return {
             'id': video_id,

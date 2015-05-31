@@ -89,7 +89,7 @@ def generator(test_case):
 
         for tc in test_cases:
             info_dict = tc.get('info_dict', {})
-            if not tc.get('file') and not (info_dict.get('id') and info_dict.get('ext')):
+            if not (info_dict.get('id') and info_dict.get('ext')):
                 raise Exception('Test definition incorrect. The output file cannot be known. Are both \'id\' and \'ext\' keys present?')
 
         if 'skip' in test_case:
@@ -116,7 +116,7 @@ def generator(test_case):
         expect_warnings(ydl, test_case.get('expected_warnings', []))
 
         def get_tc_filename(tc):
-            return tc.get('file') or ydl.prepare_filename(tc.get('info_dict', {}))
+            return ydl.prepare_filename(tc.get('info_dict', {}))
 
         res_dict = None
 
@@ -153,7 +153,7 @@ def generator(test_case):
                     break
 
             if is_playlist:
-                self.assertEqual(res_dict['_type'], 'playlist')
+                self.assertTrue(res_dict['_type'] in ['playlist', 'multi_video'])
                 self.assertTrue('entries' in res_dict)
                 expect_info_dict(self, res_dict, test_case.get('info_dict', {}))
 

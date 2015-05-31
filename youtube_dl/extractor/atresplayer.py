@@ -19,6 +19,7 @@ from ..utils import (
 
 class AtresPlayerIE(InfoExtractor):
     _VALID_URL = r'https?://(?:www\.)?atresplayer\.com/television/[^/]+/[^/]+/[^/]+/(?P<id>.+?)_\d+\.html'
+    _NETRC_MACHINE = 'atresplayer'
     _TESTS = [
         {
             'url': 'http://www.atresplayer.com/television/programas/el-club-de-la-comedia/temporada-4/capitulo-10-especial-solidario-nochebuena_2014122100174.html',
@@ -95,7 +96,7 @@ class AtresPlayerIE(InfoExtractor):
         for fmt in ['windows', 'android_tablet']:
             request = compat_urllib_request.Request(
                 self._URL_VIDEO_TEMPLATE.format(fmt, episode_id, timestamp_shifted, token))
-            request.add_header('Youtubedl-user-agent', self._USER_AGENT)
+            request.add_header('User-Agent', self._USER_AGENT)
 
             fmt_json = self._download_json(
                 request, video_id, 'Downloading %s video JSON' % fmt)
@@ -105,13 +106,22 @@ class AtresPlayerIE(InfoExtractor):
                 raise ExtractorError(
                     '%s returned error: %s' % (self.IE_NAME, result), expected=True)
 
-            for _, video_url in fmt_json['resultObject'].items():
+            for format_id, video_url in fmt_json['resultObject'].items():
+                if format_id == 'token' or not video_url.startswith('http'):
+                    continue
                 if video_url.endswith('/Manifest'):
-                    formats.extend(self._extract_f4m_formats(video_url[:-9] + '/manifest.f4m', video_id))
+                    if 'geodeswowsmpra3player' in video_url:
+                        f4m_path = video_url.split('smil:', 1)[-1].split('free_', 1)[0]
+                        f4m_url = 'http://drg.antena3.com/{0}hds/es/sd.f4m'.format(f4m_path)
+                        # this videos are protected by DRM, the f4m downloader doesn't support them
+                        continue
+                    else:
+                        f4m_url = video_url[:-9] + '/manifest.f4m'
+                    formats.extend(self._extract_f4m_formats(f4m_url, video_id))
                 else:
                     formats.append({
                         'url': video_url,
-                        'format_id': 'android',
+                        'format_id': 'android-%s' % format_id,
                         'preference': 1,
                     })
         self._sort_formats(formats)
@@ -134,6 +144,14 @@ class AtresPlayerIE(InfoExtractor):
         description = xpath_text(art, './description', 'description')
         thumbnail = xpath_text(episode, './media/asset/files/background', 'thumbnail')
 
+        subtitles = {}
+        subtitle_url = xpath_text(episode, './media/asset/files/subtitle', 'subtitle')
+        if subtitle_url:
+            subtitles['es'] = [{
+                'ext': 'srt',
+                'url': subtitle_url,
+            }]
+
         return {
             'id': video_id,
             'title': title,
@@ -141,4 +159,5 @@ class AtresPlayerIE(InfoExtractor):
             'thumbnail': thumbnail,
             'duration': duration,
             'formats': formats,
+            'subtitles': subtitles,
         }

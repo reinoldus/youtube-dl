@@ -24,8 +24,12 @@ class FacebookIE(InfoExtractor):
     _VALID_URL = r'''(?x)
         https?://(?:\w+\.)?facebook\.com/
         (?:[^#]*?\#!/)?
-        (?:video/video\.php|photo\.php|video\.php|video/embed)\?(?:.*?)
-        (?:v|video_id)=(?P<id>[0-9]+)
+        (?:
+            (?:video/video\.php|photo\.php|video\.php|video/embed)\?(?:.*?)
+            (?:v|video_id)=|
+            [^/]+/videos/(?:[^/]+/)?
+        )
+        (?P<id>[0-9]+)
         (?:.*)'''
     _LOGIN_URL = 'https://www.facebook.com/login.php?next=http%3A%2F%2Ffacebook.com%2Fhome.php&login_attempt=1'
     _CHECKPOINT_URL = 'https://www.facebook.com/checkpoint/?next=http%3A%2F%2Ffacebook.com%2Fhome.php&_fb_noscript=1'
@@ -46,9 +50,18 @@ class FacebookIE(InfoExtractor):
             'id': '274175099429670',
             'ext': 'mp4',
             'title': 'Facebook video #274175099429670',
-        }
+        },
+        'expected_warnings': [
+            'title'
+        ]
     }, {
         'url': 'https://www.facebook.com/video.php?v=10204634152394104',
+        'only_matching': True,
+    }, {
+        'url': 'https://www.facebook.com/amogood/videos/1618742068337349/?fref=nf',
+        'only_matching': True,
+    }, {
+        'url': 'https://www.facebook.com/ChristyClarkForBC/videos/vb.22819070941/10153870694020942/?type=2&theater',
         'only_matching': True,
     }]
 
@@ -126,19 +139,25 @@ class FacebookIE(InfoExtractor):
         params_raw = compat_urllib_parse.unquote(data['params'])
         params = json.loads(params_raw)
         video_data = params['video_data'][0]
-        video_url = video_data.get('hd_src')
-        if not video_url:
-            video_url = video_data['sd_src']
-        if not video_url:
-            raise ExtractorError('Cannot find video URL')
+
+        formats = []
+        for quality in ['sd', 'hd']:
+            src = video_data.get('%s_src' % quality)
+            if src is not None:
+                formats.append({
+                    'format_id': quality,
+                    'url': src,
+                })
+        if not formats:
+            raise ExtractorError('Cannot find video formats')
 
         video_title = self._html_search_regex(
-            r'<h2 class="uiHeaderTitle">([^<]*)</h2>', webpage, 'title',
-            fatal=False)
+            r'<h2\s+[^>]*class="uiHeaderTitle"[^>]*>([^<]*)</h2>', webpage, 'title',
+            default=None)
         if not video_title:
             video_title = self._html_search_regex(
                 r'(?s)<span class="fbPhotosPhotoCaption".*?id="fbPhotoPageCaption"><span class="hasCaption">(.*?)</span>',
-                webpage, 'alternative title', default=None)
+                webpage, 'alternative title', fatal=False)
             video_title = limit_length(video_title, 80)
         if not video_title:
             video_title = 'Facebook video #%s' % video_id
@@ -146,7 +165,7 @@ class FacebookIE(InfoExtractor):
         return {
             'id': video_id,
             'title': video_title,
-            'url': video_url,
+            'formats': formats,
             'duration': int_or_none(video_data.get('video_duration')),
             'thumbnail': video_data.get('thumbnail_src'),
         }
