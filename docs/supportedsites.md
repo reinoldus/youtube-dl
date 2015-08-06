@@ -10,12 +10,14 @@
  - **56.com**
  - **5min**
  - **8tracks**
+ - **91porn**
  - **9gag**
  - **abc.net.au**
  - **Abc7News**
  - **AcademicEarth:Course**
  - **AddAnime**
  - **AdobeTV**
+ - **AdobeTVVideo**
  - **AdultSwim**
  - **Aftenposten**
  - **Aftonbladet**
@@ -26,7 +28,8 @@
  - **anitube.se**
  - **AnySex**
  - **Aparat**
- - **AppleDaily**
+ - **AppleConnect**
+ - **AppleDaily**: 臺灣蘋果日報
  - **AppleTrailers**
  - **archive.org**: archive.org videos
  - **ARD**
@@ -43,11 +46,12 @@
  - **audiomack**
  - **audiomack:album**
  - **Azubu**
- - **BaiduVideo**
+ - **BaiduVideo**: 百度视频
  - **bambuser**
  - **bambuser:channel**
  - **Bandcamp**
  - **Bandcamp:album**
+ - **bbc**: BBC
  - **bbc.co.uk**: BBC iPlayer
  - **BeatportPro**
  - **Beeg**
@@ -104,11 +108,12 @@
  - **Crunchyroll**
  - **crunchyroll:playlist**
  - **CSpan**: C-SPAN
- - **CtsNews**
+ - **CtsNews**: 華視新聞
  - **culturebox.francetvinfo.fr**
  - **dailymotion**
  - **dailymotion:playlist**
  - **dailymotion:user**
+ - **DailymotionCloud**
  - **daum.net**
  - **DBTV**
  - **DctpTv**
@@ -118,7 +123,9 @@
  - **Discovery**
  - **divxstage**: DivxStage
  - **Dotsub**
- - **DouyuTV**
+ - **DouyuTV**: 斗鱼
+ - **dramafever**
+ - **dramafever:series**
  - **DRBonanza**
  - **Dropbox**
  - **DrTuber**
@@ -152,6 +159,7 @@
  - **fernsehkritik.tv**
  - **fernsehkritik.tv:postecke**
  - **Firstpost**
+ - **FiveTV**
  - **Flickr**
  - **Folketinget**: Folketinget (ft.dk; Danish parliament)
  - **FootyRoom**
@@ -216,6 +224,8 @@
  - **instagram:user**: Instagram user profile
  - **InternetVideoArchive**
  - **IPrima**
+ - **iqiyi**: 爱奇艺
+ - **Ir90Tv**
  - **ivi**: ivi.ru
  - **ivi:compilation**: ivi.ru compilations
  - **Izlesene**
@@ -236,9 +246,16 @@
  - **kontrtube**: KontrTube.ru - Труба зовёт
  - **KrasView**: Красвью
  - **Ku6**
+ - **kuwo:album**: 酷我音乐 - 专辑
+ - **kuwo:category**: 酷我音乐 - 分类
+ - **kuwo:chart**: 酷我音乐 - 排行榜
+ - **kuwo:mv**: 酷我音乐 - MV
+ - **kuwo:singer**: 酷我音乐 - 歌手
+ - **kuwo:song**: 酷我音乐
  - **la7.tv**
  - **Laola1Tv**
- - **Letv**
+ - **Lecture2Go**
+ - **Letv**: 乐视网
  - **LetvPlaylist**
  - **LetvTv**
  - **Libsyn**
@@ -276,6 +293,7 @@
  - **Motherless**
  - **Motorsport**: motorsport.com
  - **MovieClips**
+ - **MovieFap**
  - **Moviezine**
  - **movshare**: MovShare
  - **MPORA**
@@ -289,6 +307,7 @@
  - **MySpace**
  - **MySpace:album**
  - **MySpass**
+ - **Myvi**
  - **myvideo**
  - **MyVidster**
  - **N-JOY**
@@ -304,11 +323,18 @@
  - **NDTV**
  - **NerdCubedFeed**
  - **Nerdist**
+ - **netease:album**: 网易云音乐 - 专辑
+ - **netease:djradio**: 网易云音乐 - 电台
+ - **netease:mv**: 网易云音乐 - MV
+ - **netease:playlist**: 网易云音乐 - 歌单
+ - **netease:program**: 网易云音乐 - 电台节目
+ - **netease:singer**: 网易云音乐 - 歌手
+ - **netease:song**: 网易云音乐
  - **Netzkino**
  - **Newgrounds**
  - **Newstube**
- - **NextMedia**
- - **NextMediaActionNews**
+ - **NextMedia**: 蘋果日報
+ - **NextMediaActionNews**: 蘋果日報 - 動新聞
  - **nfb**: National Film Board of Canada
  - **nfl.com**
  - **nhl.com**
@@ -319,17 +345,19 @@
  - **Noco**
  - **Normalboots**
  - **NosVideo**
+ - **Nova**: TN.cz, Prásk.tv, Nova.cz, Novaplus.cz, FANDA.tv, Krásná.cz and Doma.cz
  - **novamov**: NovaMov
  - **Nowness**
  - **NowTV**
  - **nowvideo**: NowVideo
- - **npo.nl**
+ - **npo**: npo.nl and ntr.nl
+ - **npo**: npo.nl and ntr.nl
  - **npo.nl:live**
  - **npo.nl:radio**
  - **npo.nl:radio:fragment**
  - **NRK**
  - **NRKPlaylist**
- - **NRKTV**
+ - **NRKTV**: NRK TV and NRK Radio
  - **ntv.ru**
  - **Nuvid**
  - **NYTimes**
@@ -338,6 +366,7 @@
  - **Odnoklassniki**
  - **OktoberfestTV**
  - **on.aol.com**
+ - **OnionStudios**
  - **Ooyala**
  - **OoyalaExternal**
  - **OpenFilm**
@@ -351,6 +380,7 @@
  - **PhilharmonieDeParis**: Philharmonie de Paris
  - **Phoenix**
  - **Photobucket**
+ - **Pinkbike**
  - **Pladform**
  - **PlanetaPlay**
  - **play.fm**
@@ -371,10 +401,11 @@
  - **prosiebensat1**: ProSiebenSat.1 Digital
  - **Puls4**
  - **Pyvideo**
- - **qqmusic**
- - **qqmusic:album**
- - **qqmusic:singer**
- - **qqmusic:toplist**
+ - **qqmusic**: QQ音乐
+ - **qqmusic:album**: QQ音乐 - 专辑
+ - **qqmusic:playlist**: QQ音乐 - 歌单
+ - **qqmusic:singer**: QQ音乐 - 歌手
+ - **qqmusic:toplist**: QQ音乐 - 排行榜
  - **QuickVid**
  - **R7**
  - **radio.de**
@@ -383,6 +414,7 @@
  - **RadioJavan**
  - **Rai**
  - **RBMARadio**
+ - **RDS**: RDS.ca
  - **RedTube**
  - **Restudy**
  - **ReverbNation**
@@ -405,6 +437,7 @@
  - **rutube:movie**: Rutube movies
  - **rutube:person**: Rutube person videos
  - **RUTV**: RUTV.RU
+ - **Ruutu**
  - **safari**: safaribooksonline.com online video
  - **safari:course**: safaribooksonline.com online courses
  - **Sandia**: Sandia National Laboratories
@@ -429,8 +462,12 @@
  - **smotri:broadcast**: Smotri.com broadcasts
  - **smotri:community**: Smotri.com community videos
  - **smotri:user**: Smotri.com user videos
+ - **SnagFilms**
+ - **SnagFilmsEmbed**
  - **Snotr**
  - **Sohu**
+ - **soompi**
+ - **soompi:show**
  - **soundcloud**
  - **soundcloud:playlist**
  - **soundcloud:set**
@@ -453,6 +490,7 @@
  - **SportBox**
  - **SportBoxEmbed**
  - **SportDeutschland**
+ - **Sportschau**
  - **Srf**
  - **SRMediathek**: Saarländischer Rundfunk
  - **SSA**
@@ -478,7 +516,6 @@
  - **TechTalks**
  - **techtv.mit.edu**
  - **ted**
- - **tegenlicht.vpro.nl**
  - **TeleBruxelles**
  - **telecinco.es**
  - **TeleMB**
@@ -489,6 +526,7 @@
  - **TheOnion**
  - **ThePlatform**
  - **TheSixtyOne**
+ - **ThisAmericanLife**
  - **ThisAV**
  - **THVideo**
  - **THVideoPlaylist**
@@ -505,6 +543,7 @@
  - **Trilulilu**
  - **TruTube**
  - **Tube8**
+ - **TubiTv**
  - **Tudou**
  - **Tumblr**
  - **TuneIn**
@@ -514,6 +553,8 @@
  - **TV2**
  - **TV2Article**
  - **TV4**: tv4.se and tv4play.se
+ - **TVC**
+ - **TVCArticle**
  - **tvigle**: Интернет-телевидение Tvigle.ru
  - **tvp.pl**
  - **tvp.pl:Series**
@@ -526,10 +567,11 @@
  - **twitch:stream**
  - **twitch:video**
  - **twitch:vod**
+ - **TwitterCard**
  - **Ubu**
  - **udemy**
  - **udemy:course**
- - **UDNEmbed**
+ - **UDNEmbed**: 聯合影音
  - **Ultimedia**
  - **Unistra**
  - **Urort**: NRK P3 Urørt
@@ -574,8 +616,8 @@
  - **Vimple**: Vimple - one-click video hosting
  - **Vine**
  - **vine:user**
- - **vk.com**
- - **vk.com:user-videos**: vk.com:All of a user's videos
+ - **vk**: VK
+ - **vk:uservideos**: VK - User's Videos
  - **Vodlocker**
  - **VoiceRepublic**
  - **Vporn**
@@ -591,32 +633,36 @@
  - **wdr:mobile**
  - **WDRMaus**: Sendung mit der Maus
  - **WebOfStories**
+ - **WebOfStoriesPlaylist**
  - **Weibo**
  - **Wimp**
  - **Wistia**
+ - **WNL**
  - **WorldStarHipHop**
  - **wrzuta.pl**
  - **WSJ**: Wall Street Journal
  - **XBef**
  - **XboxClips**
  - **XHamster**
+ - **XHamsterEmbed**
  - **XMinus**
  - **XNXX**
  - **Xstream**
  - **XTube**
  - **XTubeUser**: XTube user profile
- - **Xuite**
+ - **Xuite**: 隨意窩Xuite影音
  - **XVideos**
  - **XXXYMovies**
  - **Yahoo**: Yahoo screen and movies
- - **Yam**
+ - **Yam**: 蕃薯藤yam天空部落
  - **yandexmusic:album**: Яндекс.Музыка - Альбом
  - **yandexmusic:playlist**: Яндекс.Музыка - Плейлист
  - **yandexmusic:track**: Яндекс.Музыка - Трек
  - **YesJapan**
+ - **yinyuetai:video**: 音悦Tai
  - **Ynet**
  - **YouJizz**
- - **Youku**
+ - **youku**: 优酷
  - **YouPorn**
  - **YourUpload**
  - **youtube**: YouTube.com
