@@ -150,6 +150,7 @@
  - **EroProfile**
  - **Escapist**
  - **ESPN** (Currently broken)
+ - **EsriVideo**
  - **EveryonesMixtape**
  - **exfm**: ex.fm
  - **ExpoTV**
@@ -220,6 +221,8 @@
  - **imdb:list**: Internet Movie Database lists
  - **Imgur**
  - **Ina**
+ - **Indavideo**
+ - **IndavideoEmbed**
  - **InfoQ**
  - **Instagram**
  - **instagram:user**: Instagram user profile
@@ -298,6 +301,7 @@
  - **Moviezine**
  - **movshare**: MovShare
  - **MPORA**
+ - **MSNBC**
  - **MTV**
  - **mtviggy.com**
  - **mtvservices:embedded**
@@ -305,6 +309,7 @@
  - **MusicPlayOn**
  - **MusicVault**
  - **muzu.tv**
+ - **Mwave**
  - **MySpace**
  - **MySpace:album**
  - **MySpass**
@@ -386,8 +391,11 @@
  - **PlanetaPlay**
  - **play.fm**
  - **played.to**
+ - **Playtvak**: Playtvak.cz, iDNES.cz and Lidovky.cz
  - **Playvid**
  - **Playwire**
+ - **pluralsight**
+ - **pluralsight:course**
  - **plus.google**: Google Plus
  - **pluzz.francetv.fr**
  - **podomatic**
@@ -432,6 +440,7 @@
  - **rtve.es:alacarta**: RTVE a la carta
  - **rtve.es:infantil**: RTVE infantil
  - **rtve.es:live**: RTVE.es live streams
+ - **RTVNH**
  - **RUHD**
  - **rutube**: Rutube videos
  - **rutube:channel**: Rutube channels
@@ -455,6 +464,7 @@
  - **ServingSys**
  - **Sexu**
  - **SexyKarma**: Sexy Karma and Watch Indian Porn
+ - **Shahid**
  - **Shared**
  - **ShareSix**
  - **Sina**
@@ -528,6 +538,7 @@
  - **TF1**
  - **TheOnion**
  - **ThePlatform**
+ - **ThePlatformFeed**
  - **TheSixtyOne**
  - **ThisAmericanLife**
  - **ThisAV**
@@ -593,7 +604,6 @@
  - **Viddler**
  - **video.google:search**: Google Video search
  - **video.mit.edu**
- - **VideoBam**
  - **VideoDetective**
  - **videofy.me**
  - **videolectures.net**
