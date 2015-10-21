@@ -1,4 +1,5 @@
 # coding=utf-8
+import random
 from youtube_dl.extractor import youtube
 from thirdparty_grabber.youtube_dl.utils import ExtractorError
 
@@ -31,37 +32,37 @@ class GrabberApi(object):
         self.formats = formats
         self.config = Config()
 
-    def getVideoUrl(self):
+    def get_video_url(self):
         self._parse()
 
         return self.parseResults['url']
 
-    def getVideoTitle(self):
+    def get_video_title(self):
         self._parse()
 
-        return self.makeSecureTitle(self.parseResults['title'])
+        return self.make_secure_title(self.parseResults['title'])
 
-    def getVideoLength(self):
+    def get_video_length(self):
         self._parse()
 
         return self.parseResults['duration']
 
-    def getFormatId(self):
+    def get_format_id(self):
         self._parse()
 
         return self.parseResults['format_id']
 
-    def getVideoId(self):
+    def get_video_id(self):
         self._parse()
 
         return self.parseResults['id']
 
-    def getExt(self):
+    def get_ext(self):
         self._parse()
 
         return self.parseResults['ext']
 
-    def makeSecureTitle(self, string):
+    def make_secure_title(self, string):
         string = string.replace(u"Ü", u"Ue")\
             .replace(u"Ä", u"Ae")\
             .replace(u"Ö", u"Oe")\
@@ -74,6 +75,14 @@ class GrabberApi(object):
         return string
 
     def _parse(self):
+        self.parseResults = {
+            'url': 'http://localhost/video.ogg',
+            'title': str(random.randint(0, 10000000000000)),
+            'duration': 1000,
+            'format_id': 22,
+            'id': random.choice([1,2,3,4,5,6, 7]),
+            'ext': 'mp4'
+        }
         if self.parseResults is None:
             try:
                 inst = YoutubeDL({
@@ -81,7 +90,7 @@ class GrabberApi(object):
                     "skip_download": True,
                     "quiet": True,
                     #"format": self.formats,
-                    "verbose": True
+                    "verbose": False
                 })
 
                 #self.parseResults = inst.download([self.url])['entries'][0]
@@ -99,5 +108,5 @@ class GrabberApi(object):
 if __name__ == "__main__":
     #test = GrabberApi("http://vimeo.com/103389185")
     test = GrabberApi("https://www.youtube.com/watch?v=OsgUJcirboo")
-    print(test.getVideoTitle())
-    print(test.getVideoUrl())
+    print(test.get_video_title())
+    print(test.get_video_url())
