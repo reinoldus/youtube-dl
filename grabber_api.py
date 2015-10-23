@@ -108,7 +108,6 @@ class GrabberApi(object):
                 inst.get_info_extractor("Youtube")
                 inst.get_info_extractor("Vimeo")
                 self.parseResults = inst.extract_info(self.url, False)
-                print(self.parseResults)
             except thirdparty_grabber.youtube_dl.utils.DownloadError as e:
                 if "This video does not exist" in e:
                     raise myexceptions.FetchingException("YouTube said: This video does not exist.", self.config.ERROR_404)
