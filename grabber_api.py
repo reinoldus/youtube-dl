@@ -1,13 +1,8 @@
 # coding=utf-8
-import random
-from youtube_dl.extractor import youtube
+from __future__ import unicode_literals
 from thirdparty_grabber.youtube_dl.utils import ExtractorError
-
-__author__ = 'gentoo'
-
 from youtube_dl import YoutubeDL
 import thirdparty_grabber
-import traceback
 import re
 import myexceptions
 from config import Config
@@ -36,6 +31,21 @@ class GrabberApi(object):
         self._parse()
 
         return self.parseResults['url']
+
+    def get_video_url_by_format(self, desired_format):
+        self._parse()
+
+        if desired_format == "mp4":
+            return self.get_video_url()
+
+        if self.parseResults["extractor"] == "youtube" and "formats" in self.parseResults:
+            for avail_formats in self.parseResults['formats']:
+                print avail_formats
+                if desired_format.lower() == avail_formats['ext']:
+                    print avail_formats
+                    return avail_formats['url']
+
+        return self.get_video_url()
 
     def get_video_title(self):
         self._parse()
@@ -75,20 +85,21 @@ class GrabberApi(object):
         return string
 
     def _parse(self):
-        self.parseResults = {
-            'url': 'http://localhost/video.ogg',
-            'title': str(random.randint(0, 10000000000000)),
-            'duration': 1000,
-            'format_id': 22,
-            'id': random.choice([1,2,3,4,5,6, 7]),
-            'ext': 'mp4'
-        }
+        # self.parseResults = {
+        #     'url': 'http://localhost/video.ogg',
+        #     'title': str(random.randint(0, 10000000000000)),
+        #     'duration': 1000,
+        #     'format_id': 22,
+        #     'id': random.choice([1,2,3,4,5,6, 7]),
+        #     'ext': 'mp4'
+        # }
         if self.parseResults is None:
             try:
                 inst = YoutubeDL({
                     "outtmpl": "%(title)s-%(id)s.%(ext)s",
                     "skip_download": True,
                     "quiet": True,
+                    "cachedir": False,
                     #"format": self.formats,
                     "verbose": False
                 })
@@ -97,6 +108,7 @@ class GrabberApi(object):
                 inst.get_info_extractor("Youtube")
                 inst.get_info_extractor("Vimeo")
                 self.parseResults = inst.extract_info(self.url, False)
+                print(self.parseResults)
             except thirdparty_grabber.youtube_dl.utils.DownloadError as e:
                 if "This video does not exist" in e:
                     raise myexceptions.FetchingException("YouTube said: This video does not exist.", self.config.ERROR_404)
@@ -106,7 +118,8 @@ class GrabberApi(object):
                 raise myexceptions.FetchingException(e.message, self.config.ERROR_CUSTOMMESSAGE)
 
 if __name__ == "__main__":
-    #test = GrabberApi("http://vimeo.com/103389185")
-    test = GrabberApi("https://www.youtube.com/watch?v=OsgUJcirboo")
+    # test = GrabberApi("http://vimeo.com/103389185")
+    test = GrabberApi("https://www.youtube.com/watch?v=ufbHbmygwp8")
+    # test = GrabberApi("https://vimeo.com/140447838")
     print(test.get_video_title())
-    print(test.get_video_url())
+    print(test.get_video_url_by_format('aac'))
