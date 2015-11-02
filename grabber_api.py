@@ -1,17 +1,23 @@
 # coding=utf-8
 from __future__ import unicode_literals
+from thirdparty_grabber.youtube_dl.extractor.soundcloud import SoundcloudIE
+from thirdparty_grabber.youtube_dl.extractor.vimeo import VimeoIE
+from thirdparty_grabber.youtube_dl.extractor.youtube import YoutubeIE
 from thirdparty_grabber.youtube_dl.utils import ExtractorError
 from youtube_dl import YoutubeDL
 import thirdparty_grabber
 import re
 import myexceptions
 from config import Config
+import random
 
 
 class GrabberApi(object):
     """
     This is is a programming API for accessing youtube-dl functions
     """
+
+    supported_ies_re = {}
 
     def __init__(self, url, ip=None, formats="22/18/35/34/6/5"):
         """
@@ -26,6 +32,34 @@ class GrabberApi(object):
         self.parseResults = None
         self.formats = formats
         self.config = Config()
+        self.portal = ""
+        self.inst = YoutubeDL({
+                    "outtmpl": "%(title)s-%(id)s.%(ext)s",
+                    "skip_download": True,
+                    "quiet": True,
+                    "cachedir": False,
+                    #"format": self.formats,
+                    "verbose": False
+                })
+
+                #self.parseResults = inst.download([self.url])['entries'][0]
+        self.supported_ies_re["youtube"] = self.inst.get_info_extractor("Youtube")
+        self.supported_ies_re["vimeo"] = self.inst.get_info_extractor("Vimeo")
+        self.supported_ies_re["soundcloud"] = self.inst.get_info_extractor("Soundcloud")
+
+        if not self.supported():
+            raise myexceptions.FetchingException("This Platform is not supported", self.config.ERROR_UNKNOWN_PORTAL)
+
+    def supported(self):
+        for key in self.supported_ies_re:
+            ie = self.supported_ies_re[key]
+            if re.search(ie._VALID_URL, self.url) is not None:
+                self.portal = key
+                return True
+        return False
+
+    def get_portal(self):
+        return self.portal
 
     def get_video_url(self):
         self._parse()
@@ -54,6 +88,8 @@ class GrabberApi(object):
 
     def get_video_length(self):
         self._parse()
+        if "duration" not in self.parseResults:
+            return 1
 
         return self.parseResults['duration']
 
@@ -90,24 +126,13 @@ class GrabberApi(object):
         #     'title': str(random.randint(0, 10000000000000)),
         #     'duration': 1000,
         #     'format_id': 22,
-        #     'id': random.choice([1,2,3,4,5,6, 7]),
+        #     'id': random.choice([10,11,12,13,14]),
         #     'ext': 'mp4'
         # }
         if self.parseResults is None:
             try:
-                inst = YoutubeDL({
-                    "outtmpl": "%(title)s-%(id)s.%(ext)s",
-                    "skip_download": True,
-                    "quiet": True,
-                    "cachedir": False,
-                    #"format": self.formats,
-                    "verbose": False
-                })
 
-                #self.parseResults = inst.download([self.url])['entries'][0]
-                inst.get_info_extractor("Youtube")
-                inst.get_info_extractor("Vimeo")
-                self.parseResults = inst.extract_info(self.url, False)
+                self.parseResults = self.inst.extract_info(self.url, False)
             except thirdparty_grabber.youtube_dl.utils.DownloadError as e:
                 if "This video does not exist" in e:
                     raise myexceptions.FetchingException("YouTube said: This video does not exist.", self.config.ERROR_404)
@@ -117,8 +142,11 @@ class GrabberApi(object):
                 raise myexceptions.FetchingException(e.message, self.config.ERROR_CUSTOMMESSAGE)
 
 if __name__ == "__main__":
-    # test = GrabberApi("http://vimeo.com/103389185")
+    test = GrabberApi("http://vimeo.com/103389185")
     test = GrabberApi("https://www.youtube.com/watch?v=ufbHbmygwp8")
-    # test = GrabberApi("https://vimeo.com/140447838")
+    test = GrabberApi("https://vimeo.com/140447838")
+    test = GrabberApi("https://soundcloud.com/travisscott-2/travis-scott-antidote")
+    print(test.get_portal())
     print(test.get_video_title())
-    print(test.get_video_url_by_format('aac'))
+    print(test.get_video_url())
+    # print(test.get_video_url_by_format('aac'))
