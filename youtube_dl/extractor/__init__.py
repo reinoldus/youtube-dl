@@ -124,6 +124,7 @@ from .dbtv import DBTVIE
 from .dcn import DCNIE
 from .dctp import DctpTvIE
 from .deezer import DeezerPlaylistIE
+from .democracynow import DemocracynowIE
 from .dfb import DFBIE
 from .dhm import DHMIE
 from .dotsub import DotsubIE
@@ -211,7 +212,10 @@ from .gfycat import GfycatIE
 from .giantbomb import GiantBombIE
 from .giga import GigaIE
 from .glide import GlideIE
-from .globo import GloboIE
+from .globo import (
+    GloboIE,
+    GloboArticleIE,
+)
 from .godtube import GodTubeIE
 from .goldenmoustache import GoldenMoustacheIE
 from .golem import GolemIE
