@@ -4,10 +4,12 @@ from __future__ import unicode_literals
 
 import os
 import re
+import sys
 
 from .common import InfoExtractor
 from .youtube import YoutubeIE
 from ..compat import (
+    compat_etree_fromstring,
     compat_urllib_parse_unquote,
     compat_urllib_request,
     compat_urlparse,
@@ -20,7 +22,6 @@ from ..utils import (
     HEADRequest,
     is_html,
     orderedSet,
-    parse_xml,
     smuggle_url,
     unescapeHTML,
     unified_strdate,
@@ -48,6 +49,8 @@ from .vimeo import VimeoIE
 from .dailymotion import DailymotionCloudIE
 from .onionstudios import OnionStudiosIE
 from .snagfilms import SnagFilmsEmbedIE
+from .screenwavemedia import ScreenwaveMediaIE
+from .mtv import MTVServicesEmbeddedIE
 
 
 class GenericIE(InfoExtractor):
@@ -138,6 +141,7 @@ class GenericIE(InfoExtractor):
                 'ext': 'mp4',
                 'title': 'Automatics, robotics and biocybernetics',
                 'description': 'md5:815fc1deb6b3a2bff99de2d5325be482',
+                'upload_date': '20130627',
                 'formats': 'mincount:16',
                 'subtitles': 'mincount:1',
             },
@@ -228,6 +232,22 @@ class GenericIE(InfoExtractor):
             'params': {
                 'skip_download': False,
             }
+        },
+        {
+            # redirect in Refresh HTTP header
+            'url': 'https://www.facebook.com/l.php?u=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DpO8h3EaFRdo&h=TAQHsoToz&enc=AZN16h-b6o4Zq9pZkCCdOLNKMN96BbGMNtcFwHSaazus4JHT_MFYkAA-WARTX2kvsCIdlAIyHZjl6d33ILIJU7Jzwk_K3mcenAXoAzBNoZDI_Q7EXGDJnIhrGkLXo_LJ_pAa2Jzbx17UHMd3jAs--6j2zaeto5w9RTn8T_1kKg3fdC5WPX9Dbb18vzH7YFX0eSJmoa6SP114rvlkw6pkS1-T&s=1',
+            'info_dict': {
+                'id': 'pO8h3EaFRdo',
+                'ext': 'mp4',
+                'title': 'Tripeo Boiler Room x Dekmantel Festival DJ Set',
+                'description': 'md5:6294cc1af09c4049e0652b51a2df10d5',
+                'upload_date': '20150917',
+                'uploader_id': 'brtvofficial',
+                'uploader': 'Boiler Room',
+            },
+            'params': {
+                'skip_download': False,
+            },
         },
         {
             'url': 'http://www.hodiho.fr/2013/02/regis-plante-sa-jeep.html',
@@ -1001,6 +1021,16 @@ class GenericIE(InfoExtractor):
                 'description': 'New experience with Acrobat DC',
                 'duration': 248.667,
             },
+        },
+        # ScreenwaveMedia embed
+        {
+            'url': 'http://www.thecinemasnob.com/the-cinema-snob/a-nightmare-on-elm-street-2-freddys-revenge1',
+            'md5': '24ace5baba0d35d55c6810b51f34e9e0',
+            'info_dict': {
+                'id': 'cinemasnob-55d26273809dd',
+                'ext': 'mp4',
+                'title': 'cinemasnob',
+            },
         }
     ]
 
@@ -1208,7 +1238,7 @@ class GenericIE(InfoExtractor):
 
         # Is it an RSS feed, a SMIL file or a XSPF playlist?
         try:
-            doc = parse_xml(webpage)
+            doc = compat_etree_fromstring(webpage.encode('utf-8'))
             if doc.tag == 'rss':
                 return self._extract_rss(url, video_id, doc)
             elif re.match(r'^(?:{[^}]+})?smil$', doc.tag):
@@ -1583,12 +1613,9 @@ class GenericIE(InfoExtractor):
             return self.url_result(url, ie='Vulture')
 
         # Look for embedded mtvservices player
-        mobj = re.search(
-            r'<iframe src="(?P<url>https?://media\.mtvnservices\.com/embed/[^"]+)"',
-            webpage)
-        if mobj is not None:
-            url = unescapeHTML(mobj.group('url'))
-            return self.url_result(url, ie='MTVServicesEmbedded')
+        mtvservices_url = MTVServicesEmbeddedIE._extract_url(webpage)
+        if mtvservices_url:
+            return self.url_result(mtvservices_url, ie='MTVServicesEmbedded')
 
         # Look for embedded yahoo player
         mobj = re.search(
@@ -1627,7 +1654,7 @@ class GenericIE(InfoExtractor):
             return self.url_result(mobj.group('url'), 'MLB')
 
         mobj = re.search(
-            r'<iframe[^>]+?src=(["\'])(?P<url>%s)\1' % CondeNastIE.EMBED_URL,
+            r'<(?:iframe|script)[^>]+?src=(["\'])(?P<url>%s)\1' % CondeNastIE.EMBED_URL,
             webpage)
         if mobj is not None:
             return self.url_result(self._proto_relative_url(mobj.group('url'), scheme='http:'), 'CondeNast')
@@ -1645,8 +1672,8 @@ class GenericIE(InfoExtractor):
             return self.url_result(mobj.group('url'), 'Zapiks')
 
         # Look for Kaltura embeds
-        mobj = (re.search(r"(?s)kWidget\.(?:thumb)?[Ee]mbed\(\{.*?'wid'\s*:\s*'_?(?P<partner_id>[^']+)',.*?'entry_id'\s*:\s*'(?P<id>[^']+)',", webpage) or
-                re.search(r'(?s)(["\'])(?:https?:)?//cdnapisec\.kaltura\.com/.*?(?:p|partner_id)/(?P<partner_id>\d+).*?\1.*?entry_id\s*:\s*(["\'])(?P<id>[^\2]+?)\2', webpage))
+        mobj = (re.search(r"(?s)kWidget\.(?:thumb)?[Ee]mbed\(\{.*?'wid'\s*:\s*'_?(?P<partner_id>[^']+)',.*?'entry_?[Ii]d'\s*:\s*'(?P<id>[^']+)',", webpage) or
+                re.search(r'(?s)(?P<q1>["\'])(?:https?:)?//cdnapi(?:sec)?\.kaltura\.com/.*?(?:p|partner_id)/(?P<partner_id>\d+).*?(?P=q1).*?entry_?[Ii]d\s*:\s*(?P<q2>["\'])(?P<id>.+?)(?P=q2)', webpage))
         if mobj is not None:
             return self.url_result('kaltura:%(partner_id)s:%(id)s' % mobj.groupdict(), 'Kaltura')
 
@@ -1718,6 +1745,11 @@ class GenericIE(InfoExtractor):
         if snagfilms_url:
             return self.url_result(snagfilms_url)
 
+        # Look for ScreenwaveMedia embeds
+        mobj = re.search(ScreenwaveMediaIE.EMBED_PATTERN, webpage)
+        if mobj is not None:
+            return self.url_result(unescapeHTML(mobj.group('url')), 'ScreenwaveMedia')
+
         # Look for AdobeTVVideo embeds
         mobj = re.search(
             r'<iframe[^>]+src=[\'"]((?:https?:)?//video\.tv\.adobe\.com/v/\d+[^"]+)[\'"]',
@@ -1781,7 +1813,7 @@ class GenericIE(InfoExtractor):
                 found = filter_video(re.findall(r'<meta.*?property="og:video".*?content="(.*?)"', webpage))
         if not found:
             # HTML5 video
-            found = re.findall(r'(?s)<video[^<]*(?:>.*?<source[^>]*)?\s+src=["\'](.*?)["\']', webpage)
+            found = re.findall(r'(?s)<(?:video|audio)[^<]*(?:>.*?<source[^>]*)?\s+src=["\'](.*?)["\']', webpage)
         if not found:
             REDIRECT_REGEX = r'[0-9]{,2};\s*(?:URL|url)=\'?([^\'"]+)'
             found = re.search(
@@ -1792,6 +1824,9 @@ class GenericIE(InfoExtractor):
                 # Look also in Refresh HTTP header
                 refresh_header = head_response.headers.get('Refresh')
                 if refresh_header:
+                    # In python 2 response HTTP headers are bytestrings
+                    if sys.version_info < (3, 0) and isinstance(refresh_header, str):
+                        refresh_header = refresh_header.decode('iso-8859-1')
                     found = re.search(REDIRECT_REGEX, refresh_header)
             if found:
                 new_url = compat_urlparse.urljoin(url, unescapeHTML(found.group(1)))

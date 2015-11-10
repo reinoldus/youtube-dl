@@ -130,10 +130,16 @@ class NowTVIE(InfoExtractor):
     }, {
         'url': 'http://www.nowtv.at/rtl/bauer-sucht-frau/die-neuen-bauern-und-eine-hochzeit/preview?return=/rtl/bauer-sucht-frau/die-neuen-bauern-und-eine-hochzeit',
         'only_matching': True,
+    }, {
+        'url': 'http://www.nowtv.de/rtl2/echtzeit/list/aktuell/schnelles-geld-am-ende-der-welt/player',
+        'only_matching': True,
     }]
 
     def _real_extract(self, url):
         display_id = self._match_id(url)
+        display_id_split = display_id.split('/')
+        if len(display_id) > 2:
+            display_id = '/'.join((display_id_split[0], display_id_split[-1]))
 
         info = self._download_json(
             'https://api.nowtv.de/v3/movies/%s?fields=id,title,free,geoblocked,articleLong,articleShort,broadcastStartDate,seoUrl,duration,format,files' % display_id,
@@ -161,8 +167,8 @@ class NowTVIE(InfoExtractor):
                 'app': app,
                 'play_path': 'mp4:%s' % play_path,
                 'ext': 'flv',
-                'page_url': url,
-                'player_url': 'http://rtl-now.rtl.de/includes/nc_player.swf',
+                'page_url': 'http://rtlnow.rtl.de',
+                'player_url': 'http://cdn.static-fra.de/now/vodplayer.swf',
                 'tbr': int_or_none(item.get('bitrate')),
             })
         self._sort_formats(formats)

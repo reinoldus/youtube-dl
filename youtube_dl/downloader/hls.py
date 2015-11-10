@@ -12,6 +12,7 @@ from ..postprocessor.ffmpeg import FFmpegPostProcessor
 from ..utils import (
     encodeArgument,
     encodeFilename,
+    sanitize_open,
 )
 
 
@@ -27,10 +28,19 @@ class HlsFD(FileDownloader):
             return False
         ffpp.check_version()
 
-        args = [
-            encodeArgument(opt)
-            for opt in (ffpp.executable, '-y', '-i', url, '-f', 'mp4', '-c', 'copy', '-bsf:a', 'aac_adtstoasc')]
-        args.append(encodeFilename(tmpfilename, True))
+        args = [ffpp.executable, '-y']
+
+        if info_dict['http_headers'] and re.match(r'^https?://', url):
+            # Trailing \r\n after each HTTP header is important to prevent warning from ffmpeg/avconv:
+            # [http @ 00000000003d2fa0] No trailing CRLF found in HTTP header.
+            args += [
+                '-headers',
+                ''.join('%s: %s\r\n' % (key, val) for key, val in info_dict['http_headers'].items())]
+
+        args += ['-i', url, '-f', 'mp4', '-c', 'copy', '-bsf:a', 'aac_adtstoasc']
+
+        args = [encodeArgument(opt) for opt in args]
+        args.append(encodeFilename(ffpp._ffmpeg_filename_argument(tmpfilename), True))
 
         self._debug_cmd(args)
 
@@ -89,13 +99,14 @@ class NativeHlsFD(FragmentFD):
             success = ctx['dl'].download(frag_filename, {'url': frag_url})
             if not success:
                 return False
-            with open(frag_filename, 'rb') as down:
-                ctx['dest_stream'].write(down.read())
-            frags_filenames.append(frag_filename)
+            down, frag_sanitized = sanitize_open(frag_filename, 'rb')
+            ctx['dest_stream'].write(down.read())
+            down.close()
+            frags_filenames.append(frag_sanitized)
 
         self._finish_frag_download(ctx)
 
         for frag_file in frags_filenames:
-            os.remove(frag_file)
+            os.remove(encodeFilename(frag_file))
 
         return True
