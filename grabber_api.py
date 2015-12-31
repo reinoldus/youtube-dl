@@ -64,8 +64,6 @@ class GrabberApi(object):
     def get_video_url(self):
         self._parse()
 
-        print self.parseResults
-
         return self.parseResults['url']
 
     def get_video_url_by_format(self, desired_format):
