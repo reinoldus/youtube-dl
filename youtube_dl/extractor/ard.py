@@ -8,7 +8,6 @@ from .generic import GenericIE
 from ..utils import (
     determine_ext,
     ExtractorError,
-    get_element_by_attribute,
     qualities,
     int_or_none,
     parse_duration,
@@ -83,7 +82,7 @@ class ARDMediathekIE(InfoExtractor):
         subtitle_url = media_info.get('_subtitleUrl')
         if subtitle_url:
             subtitles['de'] = [{
-                'ext': 'srt',
+                'ext': 'ttml',
                 'url': subtitle_url,
             }]
 
@@ -110,13 +109,15 @@ class ARDMediathekIE(InfoExtractor):
                 server = stream.get('_server')
                 for stream_url in stream_urls:
                     ext = determine_ext(stream_url)
+                    if quality != 'auto' and ext in ('f4m', 'm3u8'):
+                        continue
                     if ext == 'f4m':
                         formats.extend(self._extract_f4m_formats(
                             stream_url + '?hdcore=3.1.1&plugin=aasp-3.1.1.69.124',
-                            video_id, preference=-1, f4m_id='hds'))
+                            video_id, preference=-1, f4m_id='hds', fatal=False))
                     elif ext == 'm3u8':
                         formats.extend(self._extract_m3u8_formats(
-                            stream_url, video_id, 'mp4', preference=1, m3u8_id='hls'))
+                            stream_url, video_id, 'mp4', preference=1, m3u8_id='hls', fatal=False))
                     else:
                         if server and server.startswith('rtmp'):
                             f = {
@@ -272,41 +273,3 @@ class ARDIE(InfoExtractor):
             'upload_date': upload_date,
             'thumbnail': thumbnail,
         }
-
-
-class SportschauIE(ARDMediathekIE):
-    IE_NAME = 'Sportschau'
-    _VALID_URL = r'(?P<baseurl>https?://(?:www\.)?sportschau\.de/(?:[^/]+/)+video(?P<id>[^/#?]+))\.html'
-    _TESTS = [{
-        'url': 'http://www.sportschau.de/tourdefrance/videoseppeltkokainhatnichtsmitklassischemdopingzutun100.html',
-        'info_dict': {
-            'id': 'seppeltkokainhatnichtsmitklassischemdopingzutun100',
-            'ext': 'mp4',
-            'title': 'Seppelt: "Kokain hat nichts mit klassischem Doping zu tun"',
-            'thumbnail': 're:^https?://.*\.jpg$',
-            'description': 'Der ARD-Doping Experte Hajo Seppelt gibt seine Einschätzung zum ersten Dopingfall der diesjährigen Tour de France um den Italiener Luca Paolini ab.',
-        },
-        'params': {
-            # m3u8 download
-            'skip_download': True,
-        },
-    }]
-
-    def _real_extract(self, url):
-        mobj = re.match(self._VALID_URL, url)
-        video_id = mobj.group('id')
-        base_url = mobj.group('baseurl')
-
-        webpage = self._download_webpage(url, video_id)
-        title = get_element_by_attribute('class', 'headline', webpage)
-        description = self._html_search_meta('description', webpage, 'description')
-
-        info = self._extract_media_info(
-            base_url + '-mc_defaultQuality-h.json', webpage, video_id)
-
-        info.update({
-            'title': title,
-            'description': description,
-        })
-
-        return info

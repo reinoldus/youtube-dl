@@ -58,15 +58,11 @@ class RutubeIE(InfoExtractor):
         for format_id, format_url in options['video_balancer'].items():
             ext = determine_ext(format_url)
             if ext == 'm3u8':
-                m3u8_formats = self._extract_m3u8_formats(
-                    format_url, video_id, 'mp4', m3u8_id=format_id, fatal=False)
-                if m3u8_formats:
-                    formats.extend(m3u8_formats)
+                formats.extend(self._extract_m3u8_formats(
+                    format_url, video_id, 'mp4', m3u8_id=format_id, fatal=False))
             elif ext == 'f4m':
-                f4m_formats = self._extract_f4m_formats(
-                    format_url, video_id, f4m_id=format_id, fatal=False)
-                if f4m_formats:
-                    formats.extend(f4m_formats)
+                formats.extend(self._extract_f4m_formats(
+                    format_url, video_id, f4m_id=format_id, fatal=False))
             else:
                 formats.append({
                     'url': format_url,
@@ -126,7 +122,7 @@ class RutubeEmbedIE(InfoExtractor):
 class RutubeChannelIE(InfoExtractor):
     IE_NAME = 'rutube:channel'
     IE_DESC = 'Rutube channels'
-    _VALID_URL = r'http://rutube\.ru/tags/video/(?P<id>\d+)'
+    _VALID_URL = r'https?://rutube\.ru/tags/video/(?P<id>\d+)'
     _TESTS = [{
         'url': 'http://rutube.ru/tags/video/1800/',
         'info_dict': {
@@ -160,7 +156,7 @@ class RutubeChannelIE(InfoExtractor):
 class RutubeMovieIE(RutubeChannelIE):
     IE_NAME = 'rutube:movie'
     IE_DESC = 'Rutube movies'
-    _VALID_URL = r'http://rutube\.ru/metainfo/tv/(?P<id>\d+)'
+    _VALID_URL = r'https?://rutube\.ru/metainfo/tv/(?P<id>\d+)'
     _TESTS = []
 
     _MOVIE_TEMPLATE = 'http://rutube.ru/api/metainfo/tv/%s/?format=json'
@@ -178,7 +174,7 @@ class RutubeMovieIE(RutubeChannelIE):
 class RutubePersonIE(RutubeChannelIE):
     IE_NAME = 'rutube:person'
     IE_DESC = 'Rutube person videos'
-    _VALID_URL = r'http://rutube\.ru/video/person/(?P<id>\d+)'
+    _VALID_URL = r'https?://rutube\.ru/video/person/(?P<id>\d+)'
     _TESTS = [{
         'url': 'http://rutube.ru/video/person/313878/',
         'info_dict': {
